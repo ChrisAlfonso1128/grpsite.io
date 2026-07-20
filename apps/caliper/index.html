@@ -454,10 +454,14 @@ const syncActions = document.getElementById('sync-actions');
 function updateSyncBar(){
   if(!cloudEnabled){
     syncDot.className = 'dot off';
-    syncText.textContent = 'Cloud sync not set up · saving to this browser only';
+    syncText.textContent = gsiBlocked
+      ? 'Google sign-in script was blocked (likely an ad blocker) · saving to this browser only'
+      : 'Cloud sync not set up · saving to this browser only';
     syncActions.innerHTML = `<button class="btn-google" id="signin-btn">Sign in with Google</button>`;
     document.getElementById('signin-btn').addEventListener('click', ()=>{
-      alert('Cloud sync isn\'t configured yet. See README.md for setup steps.');
+      alert(gsiBlocked
+        ? 'The Google sign-in script (accounts.google.com/gsi/client) failed to load — likely blocked by an ad blocker or privacy extension. Try disabling it for this site, or use a different browser/profile.'
+        : 'Cloud sync isn\'t configured yet. See README.md for setup steps.');
     });
     return;
   }
@@ -492,28 +496,39 @@ function signOutOfGoogle(){
   render();
 }
 
+let gsiBlocked = false;
+
 if(cloudEnabled){
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
-    callback: async (resp)=>{
-      if(resp.error){
-        alert('Sign-in failed: ' + resp.error);
-        return;
+  if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
+    // The Google Identity Services script (accounts.google.com/gsi/client) didn't load —
+    // usually an ad blocker or privacy extension. Don't let this crash the whole app;
+    // fall back to local-only mode and tell the user why.
+    console.warn('Google Identity Services script did not load — falling back to local-only mode. This is often caused by an ad blocker.');
+    cloudEnabled = false;
+    gsiBlocked = true;
+  } else {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+      callback: async (resp)=>{
+        if(resp.error){
+          alert('Sign-in failed: ' + resp.error);
+          return;
+        }
+        accessToken = resp.access_token;
+        updateSyncBar();
+        try{
+          await fetchUserEmail();
+          await ensureSpreadsheet();
+          await refreshFromSheet();
+        }catch(err){
+          console.error(err);
+          alert('Could not connect to Google Sheets: ' + err.message);
+        }
+        updateSyncBar();
       }
-      accessToken = resp.access_token;
-      updateSyncBar();
-      try{
-        await fetchUserEmail();
-        await ensureSpreadsheet();
-        await refreshFromSheet();
-      }catch(err){
-        console.error(err);
-        alert('Could not connect to Google Sheets: ' + err.message);
-      }
-      updateSyncBar();
-    }
-  });
+    });
+  }
 }
 
 async function gfetch(url, options = {}){
@@ -585,7 +600,7 @@ async function ensureSpreadsheet(){
       const upload = confirm(`You have ${localBackup.length} reading(s) saved on this device. Copy them into your new Google Sheet now?`);
       if(upload){
         const rows = localBackup.map(entryToRow);
-        await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+        await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
           method: 'POST',
           body: JSON.stringify({ values: rows })
         });
@@ -635,7 +650,7 @@ document.getElementById('f-date').valueAsDate = new Date();
 async function addEntry(entry){
   if(accessToken && spreadsheetId){
     try{
-      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
         method: 'POST',
         body: JSON.stringify({ values: [entryToRow(entry)] })
       });
