@@ -7,9 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
 <style>
   :root{
     --bg:#14161A;
@@ -408,48 +406,35 @@
 </main>
 
 <footer>
-  Signed out: data is stored only in this browser (localStorage). Signed in with Google: data syncs to your account via Firestore and follows you to any device. Export a backup .json anytime as a manual safety net.
+  Signed out: data is stored only in this browser (localStorage). Signed in with Google: readings save directly into a "Caliper Measurements" spreadsheet in your own Google Drive — nobody but you can see it. Export a backup .json anytime as a manual safety net.
 </footer>
 
 <script>
 // ============================================================
-// FIREBASE SETUP — replace with YOUR project's config.
-// Create a free project at https://console.firebase.google.com
-// then Project settings → General → "Your apps" → Web app.
+// GOOGLE SIGN-IN SETUP — replace with YOUR OAuth Client ID.
+// Create one at https://console.cloud.google.com
+// (APIs & Services → Credentials → Create OAuth client ID → Web app)
 // See README.md for the full step-by-step.
 // ============================================================
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
-let cloudEnabled = false;
-let db = null;
-let auth = null;
-
-try{
-  if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY"){
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
-    cloudEnabled = true;
-  }
-}catch(e){
-  console.warn("Firebase not configured — running in local-only mode.", e);
-}
+const GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com";
+const SHEET_TITLE = "Caliper Measurements";
+const SHEET_TAB = "Sheet1";
 
 const PARTS = ["Neck","Shoulders","Chest","Waist","Hips","L Bicep","R Bicep","L Forearm","R Forearm","L Thigh","R Thigh","L Calf","R Calf"];
+const SHEET_COLUMNS = ["Date","Unit", ...PARTS, "Notes"]; // maps to columns A:P
 const STORAGE_KEY = "caliper_entries_v1";
+const SHEET_ID_CACHE_KEY = "caliper_sheet_id";
 
+let cloudEnabled = (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_CLIENT_ID.apps.googleusercontent.com");
 let entries = loadLocalEntries();
 let activePart = PARTS[0];
 let chart = null;
-let currentUser = null;
-let unsubscribeSnapshot = null;
+
+let accessToken = null;      // current OAuth token (memory only, never persisted)
+let userEmail = null;
+let tokenClient = null;
+let spreadsheetId = localStorage.getItem(SHEET_ID_CACHE_KEY) || null;
+let sheetGid = null;         // numeric sheet/tab id, needed for row deletes
 
 function loadLocalEntries(){
   try{
@@ -459,9 +444,6 @@ function loadLocalEntries(){
 }
 function saveLocalEntries(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-function makeId(){
-  return (crypto.randomUUID ? crypto.randomUUID() : 'e_' + Date.now() + '_' + Math.random().toString(16).slice(2));
 }
 
 // --- Sync bar UI ---
@@ -479,11 +461,11 @@ function updateSyncBar(){
     });
     return;
   }
-  if(currentUser){
+  if(accessToken){
     syncDot.className = 'dot on';
-    syncText.textContent = `Synced as ${currentUser.email}`;
+    syncText.textContent = userEmail ? `Saving to ${userEmail}'s Google Sheet` : 'Saving to your Google Sheet';
     syncActions.innerHTML = `<button class="btn-ghost" id="signout-btn">Sign out</button>`;
-    document.getElementById('signout-btn').addEventListener('click', ()=> auth.signOut());
+    document.getElementById('signout-btn').addEventListener('click', signOutOfGoogle);
   } else {
     syncDot.className = 'dot off';
     syncText.textContent = 'Not signed in · saving to this browser only';
@@ -493,66 +475,176 @@ function updateSyncBar(){
 }
 
 function signIn(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(err=>{
-    alert('Sign-in failed: ' + err.message);
-  });
+  if(!tokenClient) return;
+  tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
 }
 
+function signOutOfGoogle(){
+  if(accessToken){
+    google.accounts.oauth2.revoke(accessToken, ()=>{});
+  }
+  accessToken = null;
+  userEmail = null;
+  spreadsheetId = null;
+  localStorage.removeItem(SHEET_ID_CACHE_KEY);
+  updateSyncBar();
+  entries = loadLocalEntries();
+  render();
+}
 
 if(cloudEnabled){
-  auth.onAuthStateChanged(async (user)=>{
-    currentUser = user;
-    updateSyncBar();
-    if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
-
-    if(user){
-      const localBackup = loadLocalEntries();
-      const col = db.collection('users').doc(user.uid).collection('entries');
-
-      // One-time migration: if cloud is empty but local has data, offer to upload it.
-      const snap = await col.get();
-      if(snap.empty && localBackup.length > 0){
-        const upload = confirm(`You have ${localBackup.length} reading(s) saved on this device. Upload them to your account now?`);
-        if(upload){
-          const batch = db.batch();
-          localBackup.forEach(e=>{
-            const id = e.id || makeId();
-            batch.set(col.doc(id), {...e, id});
-          });
-          await batch.commit();
-        }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+    callback: async (resp)=>{
+      if(resp.error){
+        alert('Sign-in failed: ' + resp.error);
+        return;
       }
-
-      unsubscribeSnapshot = col.onSnapshot(snapshot=>{
-        entries = snapshot.docs.map(d => d.data());
-        entries.sort((a,b)=> a.date.localeCompare(b.date));
-        render();
-      }, err=>{
+      accessToken = resp.access_token;
+      updateSyncBar();
+      try{
+        await fetchUserEmail();
+        await ensureSpreadsheet();
+        await refreshFromSheet();
+      }catch(err){
         console.error(err);
-        alert('Cloud sync error: ' + err.message);
-      });
-    } else {
-      entries = loadLocalEntries();
-      render();
+        alert('Could not connect to Google Sheets: ' + err.message);
+      }
+      updateSyncBar();
     }
   });
 }
 
-updateSyncBar();
+async function gfetch(url, options = {}){
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.body ? {'Content-Type': 'application/json'} : {})
+    }
+  });
+  if(res.status === 401){
+    // Token expired mid-session — ask the user to sign in again.
+    accessToken = null;
+    updateSyncBar();
+    throw new Error('Your session expired — please sign in again.');
+  }
+  if(!res.ok){
+    const body = await res.text();
+    throw new Error(`${res.status}: ${body.slice(0,200)}`);
+  }
+  return res.json();
+}
 
+async function fetchUserEmail(){
+  const info = await gfetch('https://www.googleapis.com/oauth2/v3/userinfo');
+  userEmail = info.email || null;
+}
+
+// Find the user's existing "Caliper Measurements" sheet, or create a new one.
+async function ensureSpreadsheet(){
+  if(spreadsheetId){
+    // Verify the cached id is still valid & fetch its tab id.
+    try{
+      const meta = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`);
+      sheetGid = meta.sheets[0].properties.sheetId;
+      return;
+    }catch(e){
+      spreadsheetId = null; // cached id no longer valid, fall through to search/create
+    }
+  }
+
+  const q = encodeURIComponent(`name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const found = await gfetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+
+  if(found.files && found.files.length > 0){
+    spreadsheetId = found.files[0].id;
+    const meta = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`);
+    sheetGid = meta.sheets[0].properties.sheetId;
+  } else {
+    const created = await gfetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: { title: SHEET_TITLE },
+        sheets: [{ properties: { title: SHEET_TAB } }]
+      })
+    });
+    spreadsheetId = created.spreadsheetId;
+    sheetGid = created.sheets[0].properties.sheetId;
+
+    await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A1:P1?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [SHEET_COLUMNS] })
+    });
+
+    // Offer to migrate any existing local readings into the brand-new sheet.
+    const localBackup = loadLocalEntries();
+    if(localBackup.length > 0){
+      const upload = confirm(`You have ${localBackup.length} reading(s) saved on this device. Copy them into your new Google Sheet now?`);
+      if(upload){
+        const rows = localBackup.map(entryToRow);
+        await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+          method: 'POST',
+          body: JSON.stringify({ values: rows })
+        });
+      }
+    }
+  }
+  localStorage.setItem(SHEET_ID_CACHE_KEY, spreadsheetId);
+}
+
+function entryToRow(entry){
+  return SHEET_COLUMNS.map(col=>{
+    if(col === 'Date') return entry.date || '';
+    if(col === 'Unit') return entry.unit || '';
+    if(col === 'Notes') return entry.notes || '';
+    return entry.values && entry.values[col] !== undefined ? entry.values[col] : '';
+  });
+}
+
+function rowToEntry(row, sheetRowNumber){
+  const entry = { rowNumber: sheetRowNumber, date: row[0] || '', unit: row[1] || 'in', notes: '', values: {} };
+  PARTS.forEach((part, i)=>{
+    const v = row[2 + i];
+    if(v !== undefined && v !== ''){
+      const n = parseFloat(v);
+      if(!isNaN(n)) entry.values[part] = n;
+    }
+  });
+  entry.notes = row[2 + PARTS.length] || '';
+  entry.id = String(sheetRowNumber); // sheet row number doubles as a stable-enough id between refreshes
+  return entry;
+}
+
+async function refreshFromSheet(){
+  const data = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P`);
+  const rows = data.values || [];
+  entries = rows.map((row, i)=> rowToEntry(row, i + 2)); // +2: row 1 is the header
+  entries.sort((a,b)=> a.date.localeCompare(b.date));
+  render();
+}
+
+updateSyncBar();
 
 // default date field to today
 document.getElementById('f-date').valueAsDate = new Date();
 
-// --- add / delete entry (routes to cloud or local) ---
+// --- add / delete entry (routes to cloud sheet or local storage) ---
 async function addEntry(entry){
-  entry.id = makeId();
-  if(currentUser){
-    const col = db.collection('users').doc(currentUser.uid).collection('entries');
-    await col.doc(entry.id).set(entry);
-    // onSnapshot listener will update `entries` and re-render.
+  if(accessToken && spreadsheetId){
+    try{
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:P?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+        method: 'POST',
+        body: JSON.stringify({ values: [entryToRow(entry)] })
+      });
+      await refreshFromSheet();
+    }catch(err){
+      alert('Could not save to Google Sheets: ' + err.message);
+    }
   } else {
+    entry.id = String(Date.now());
     entries.push(entry);
     entries.sort((a,b)=> a.date.localeCompare(b.date));
     saveLocalEntries();
@@ -562,10 +654,23 @@ async function addEntry(entry){
 
 async function deleteEntry(id){
   if(!confirm("Delete this reading?")) return;
-  if(currentUser){
-    const col = db.collection('users').doc(currentUser.uid).collection('entries');
-    await col.doc(id).delete();
-    // onSnapshot listener will update `entries` and re-render.
+  if(accessToken && spreadsheetId){
+    try{
+      const rowNumber = parseInt(id, 10);
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          requests: [{
+            deleteDimension: {
+              range: { sheetId: sheetGid, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber }
+            }
+          }]
+        })
+      });
+      await refreshFromSheet();
+    }catch(err){
+      alert('Could not delete from Google Sheets: ' + err.message);
+    }
   } else {
     entries = entries.filter(e => e.id !== id);
     saveLocalEntries();
