@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caliper — Measurement Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#14161A;
+    --panel:#1B1E24;
+    --panel-2:#20242C;
+    --line:#2A2E36;
+    --text:#EDEBE6;
+    --muted:#8B8F98;
+    --amber:#E8A33D;
+    --amber-dim:#8A6428;
+    --green:#6FCF97;
+    --red:#E0725C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber);color:#14161A;}
+
+  /* --- Tape header --- */
+  .tape{
+    position:relative;
+    height:14px;
+    background:repeating-linear-gradient(
+      90deg,
+      var(--amber-dim) 0px, var(--amber-dim) 1px,
+      transparent 1px, transparent 10px
+    );
+    background-color:#111318;
+    border-bottom:1px solid var(--line);
+  }
+  .tape::after{
+    content:"";
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(
+      90deg,
+      var(--amber) 0px, var(--amber) 2px,
+      transparent 2px, transparent 100px
+    );
+    opacity:.55;
+  }
+
+  header{
+    max-width:1040px;
+    margin:0 auto;
+    padding:40px 24px 24px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(40px,7vw,64px);
+    letter-spacing:.02em;
+    margin:0 0 8px;
+    line-height:.95;
+  }
+  header p{
+    color:var(--muted);
+    max-width:56ch;
+    margin:0;
+    font-size:15px;
+  }
+
+  main{
+    max-width:1040px;
+    margin:0 auto;
+    padding:0 24px 80px;
+    display:grid;
+    gap:24px;
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:24px;
+  }
+  .panel h2{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:22px;
+    letter-spacing:.03em;
+    margin:0 0 4px;
+  }
+  .panel .sub{
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 20px;
+  }
+
+  /* --- form --- */
+  .grid-form{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:14px;
+  }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+  }
+  .field input, .field select{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:9px 10px;
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+  }
+  .field input:focus, .field select:focus{
+    outline:2px solid var(--amber);
+    outline-offset:1px;
+    border-color:var(--amber);
+  }
+  .field.wide{grid-column:1 / -1;}
+
+  .row-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:20px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    padding:10px 18px;
+    cursor:pointer;
+    transition:transform .08s ease, border-color .15s ease;
+  }
+  button:active{transform:scale(.97);}
+  .btn-primary{
+    background:var(--amber);
+    color:#1A1300;
+    border:none;
+  }
+  .btn-primary:hover{background:#f0b358;}
+  .btn-ghost{
+    background:transparent;
+    color:var(--muted);
+  }
+  .btn-ghost:hover{color:var(--text); border-color:var(--muted);}
+  .btn-danger{
+    background:transparent;
+    color:var(--red);
+    border-color:var(--red);
+  }
+
+  /* --- progress cards --- */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+    gap:12px;
+  }
+  .card{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .card:hover, .card.active{border-color:var(--amber);}
+  .card .name{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .card .latest{
+    font-family:'JetBrains Mono',monospace;
+    font-size:22px;
+    font-weight:700;
+  }
+  .card .delta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    margin-top:4px;
+  }
+  .delta.up{color:var(--green);}
+  .delta.down{color:var(--red);}
+  .delta.flat{color:var(--muted);}
+
+  /* --- chart --- */
+  .chart-wrap{height:280px;}
+
+  /* --- table --- */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+  }
+  th, td{
+    text-align:left;
+    padding:10px 12px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  th{
+    color:var(--muted);
+    text-transform:uppercase;
+    font-size:11px;
+    letter-spacing:.06em;
+    font-weight:500;
+    position:sticky; top:0;
+    background:var(--panel);
+  }
+  tbody tr:hover{background:var(--panel-2);}
+  .table-scroll{overflow-x:auto; max-height:420px; overflow-y:auto;}
+  td.del{cursor:pointer; color:var(--muted);}
+  td.del:hover{color:var(--red);}
+
+  .empty{
+    color:var(--muted);
+    font-size:14px;
+    padding:32px 0;
+    text-align:center;
+  }
+
+  /* --- sync bar --- */
+  .sync-bar{
+    max-width:1040px;
+    margin:0 auto;
+    padding:14px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+  }
+  .sync-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--muted);
+    flex-shrink:0;
+  }
+  .dot.on{background:var(--green);}
+  .dot.off{background:var(--muted);}
+  .btn-google{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel-2);
+    color:var(--text);
+  }
+  .btn-google:hover{border-color:var(--amber);}
+  .banner{
+    background:var(--panel-2);
+    border:1px solid var(--amber-dim);
+    border-radius:8px;
+    padding:12px 16px;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .banner button{ padding:6px 14px; font-size:13px; }
+
+
+  footer{
+    max-width:1040px;
+    margin:0 auto;
+    padding:0 24px 60px;
+    color:var(--muted);
+    font-size:12px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    button{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="tape"></div>
+
+<div class="sync-bar">
+  <div class="sync-status">
+    <span class="dot off" id="sync-dot"></span>
+    <span id="sync-text">Not connected · saving to this browser only</span>
+  </div>
+  <div id="sync-actions">
+    <button class="btn-google" id="signin-btn">Sign in with Google</button>
+  </div>
+</div>
+
+<header>
+  <p class="eyebrow">// personal measurement log</p>
+  <h1>CALIPER</h1>
+  <p>Track the width and circumference of every limb and body part over time. Data lives only in this browser — export a backup whenever you want.</p>
+</header>
+
+<main>
+
+  <!-- Add entry -->
+  <section class="panel">
+    <h2>Log a Reading</h2>
+    <p class="sub">Fill what you measured today. Leave blank anything you skipped.</p>
+    <form id="entry-form">
+      <div class="grid-form">
+        <div class="field">
+          <label for="f-date">Date</label>
+          <input type="date" id="f-date" required>
+        </div>
+        <div class="field">
+          <label for="f-unit">Unit</label>
+          <select id="f-unit">
+            <option value="in">inches</option>
+            <option value="cm">cm</option>
+          </select>
+        </div>
+        <div class="field"><label>Neck</label><input type="number" step="0.1" data-part="Neck"></div>
+        <div class="field"><label>Shoulders</label><input type="number" step="0.1" data-part="Shoulders"></div>
+        <div class="field"><label>Chest</label><input type="number" step="0.1" data-part="Chest"></div>
+        <div class="field"><label>Waist</label><input type="number" step="0.1" data-part="Waist"></div>
+        <div class="field"><label>Hips</label><input type="number" step="0.1" data-part="Hips"></div>
+        <div class="field"><label>L Bicep</label><input type="number" step="0.1" data-part="L Bicep"></div>
+        <div class="field"><label>R Bicep</label><input type="number" step="0.1" data-part="R Bicep"></div>
+        <div class="field"><label>L Forearm</label><input type="number" step="0.1" data-part="L Forearm"></div>
+        <div class="field"><label>R Forearm</label><input type="number" step="0.1" data-part="R Forearm"></div>
+        <div class="field"><label>L Thigh</label><input type="number" step="0.1" data-part="L Thigh"></div>
+        <div class="field"><label>R Thigh</label><input type="number" step="0.1" data-part="R Thigh"></div>
+        <div class="field"><label>L Calf</label><input type="number" step="0.1" data-part="L Calf"></div>
+        <div class="field"><label>R Calf</label><input type="number" step="0.1" data-part="R Calf"></div>
+        <div class="field wide">
+          <label for="f-notes">Notes</label>
+          <input type="text" id="f-notes" placeholder="e.g. morning, fasted, post-cut">
+        </div>
+      </div>
+      <div class="row-actions">
+        <div style="display:flex; gap:10px;">
+          <button type="button" id="export-btn" class="btn-ghost">Export backup (.json)</button>
+          <button type="button" id="import-btn" class="btn-ghost">Import backup</button>
+          <input type="file" id="import-file" accept="application/json" style="display:none;">
+        </div>
+        <button type="submit" class="btn-primary">Save Reading</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Progress cards -->
+  <section class="panel">
+    <h2>Progress</h2>
+    <p class="sub">Latest reading vs. your first. Tap a card to chart it.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- Chart -->
+  <section class="panel">
+    <h2 id="chart-title">Trend</h2>
+    <p class="sub" id="chart-sub">Select a body part above to see it plotted over time.</p>
+    <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+  </section>
+
+  <!-- History table -->
+  <section class="panel">
+    <h2>History</h2>
+    <p class="sub">All logged readings, most recent first.</p>
+    <div class="table-scroll">
+      <table id="history-table">
+        <thead><tr id="history-head"></tr></thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <p class="empty" id="empty-msg" style="display:none;">No readings yet — log your first one above.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Signed out: data is stored only in this browser (localStorage). Signed in with Google: data syncs to your account via Firestore and follows you to any device. Export a backup .json anytime as a manual safety net.
+</footer>
+
+<script>
+// ============================================================
+// FIREBASE SETUP — replace with YOUR project's config.
+// Create a free project at https://console.firebase.google.com
+// then Project settings → General → "Your apps" → Web app.
+// See README.md for the full step-by-step.
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let cloudEnabled = false;
+let db = null;
+let auth = null;
+
+try{
+  if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY"){
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    cloudEnabled = true;
+  }
+}catch(e){
+  console.warn("Firebase not configured — running in local-only mode.", e);
+}
+
+const PARTS = ["Neck","Shoulders","Chest","Waist","Hips","L Bicep","R Bicep","L Forearm","R Forearm","L Thigh","R Thigh","L Calf","R Calf"];
+const STORAGE_KEY = "caliper_entries_v1";
+
+let entries = loadLocalEntries();
+let activePart = PARTS[0];
+let chart = null;
+let currentUser = null;
+let unsubscribeSnapshot = null;
+
+function loadLocalEntries(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveLocalEntries(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+function makeId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'e_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+}
+
+// --- Sync bar UI ---
+const syncDot = document.getElementById('sync-dot');
+const syncText = document.getElementById('sync-text');
+const syncActions = document.getElementById('sync-actions');
+
+function updateSyncBar(){
+  if(!cloudEnabled){
+    syncDot.className = 'dot off';
+    syncText.textContent = 'Cloud sync not set up · saving to this browser only';
+    syncActions.innerHTML = `<button class="btn-google" id="signin-btn">Sign in with Google</button>`;
+    document.getElementById('signin-btn').addEventListener('click', ()=>{
+      alert('Cloud sync isn\'t configured yet. See README.md for setup steps.');
+    });
+    return;
+  }
+  if(currentUser){
+    syncDot.className = 'dot on';
+    syncText.textContent = `Synced as ${currentUser.email}`;
+    syncActions.innerHTML = `<button class="btn-ghost" id="signout-btn">Sign out</button>`;
+    document.getElementById('signout-btn').addEventListener('click', ()=> auth.signOut());
+  } else {
+    syncDot.className = 'dot off';
+    syncText.textContent = 'Not signed in · saving to this browser only';
+    syncActions.innerHTML = `<button class="btn-google" id="signin-btn">Sign in with Google</button>`;
+    document.getElementById('signin-btn').addEventListener('click', signIn);
+  }
+}
+
+function signIn(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err=>{
+    alert('Sign-in failed: ' + err.message);
+  });
+}
+
+
+if(cloudEnabled){
+  auth.onAuthStateChanged(async (user)=>{
+    currentUser = user;
+    updateSyncBar();
+    if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+
+    if(user){
+      const localBackup = loadLocalEntries();
+      const col = db.collection('users').doc(user.uid).collection('entries');
+
+      // One-time migration: if cloud is empty but local has data, offer to upload it.
+      const snap = await col.get();
+      if(snap.empty && localBackup.length > 0){
+        const upload = confirm(`You have ${localBackup.length} reading(s) saved on this device. Upload them to your account now?`);
+        if(upload){
+          const batch = db.batch();
+          localBackup.forEach(e=>{
+            const id = e.id || makeId();
+            batch.set(col.doc(id), {...e, id});
+          });
+          await batch.commit();
+        }
+      }
+
+      unsubscribeSnapshot = col.onSnapshot(snapshot=>{
+        entries = snapshot.docs.map(d => d.data());
+        entries.sort((a,b)=> a.date.localeCompare(b.date));
+        render();
+      }, err=>{
+        console.error(err);
+        alert('Cloud sync error: ' + err.message);
+      });
+    } else {
+      entries = loadLocalEntries();
+      render();
+    }
+  });
+}
+
+updateSyncBar();
+
+
+// default date field to today
+document.getElementById('f-date').valueAsDate = new Date();
+
+// --- add / delete entry (routes to cloud or local) ---
+async function addEntry(entry){
+  entry.id = makeId();
+  if(currentUser){
+    const col = db.collection('users').doc(currentUser.uid).collection('entries');
+    await col.doc(entry.id).set(entry);
+    // onSnapshot listener will update `entries` and re-render.
+  } else {
+    entries.push(entry);
+    entries.sort((a,b)=> a.date.localeCompare(b.date));
+    saveLocalEntries();
+    render();
+  }
+}
+
+async function deleteEntry(id){
+  if(!confirm("Delete this reading?")) return;
+  if(currentUser){
+    const col = db.collection('users').doc(currentUser.uid).collection('entries');
+    await col.doc(id).delete();
+    // onSnapshot listener will update `entries` and re-render.
+  } else {
+    entries = entries.filter(e => e.id !== id);
+    saveLocalEntries();
+    render();
+  }
+}
+
+// --- form submit ---
+document.getElementById('entry-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const date = document.getElementById('f-date').value;
+  if(!date) return;
+  const unit = document.getElementById('f-unit').value;
+  const notes = document.getElementById('f-notes').value.trim();
+  const values = {};
+  document.querySelectorAll('[data-part]').forEach(inp=>{
+    const v = inp.value.trim();
+    if(v !== "") values[inp.dataset.part] = parseFloat(v);
+  });
+  if(Object.keys(values).length === 0){
+    alert("Enter at least one measurement.");
+    return;
+  }
+  await addEntry({ date, unit, notes, values });
+  e.target.reset();
+  document.getElementById('f-date').valueAsDate = new Date();
+});
+
+// --- export / import ---
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(entries, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `caliper-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('import-btn').addEventListener('click', ()=>{
+  document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (evt)=>{
+    try{
+      const data = JSON.parse(evt.target.result);
+      if(!Array.isArray(data)) throw new Error("bad format");
+      for(const entry of data){
+        const { id, ...rest } = entry; // assign fresh ids to avoid collisions
+        await addEntry(rest);
+      }
+      alert(`Imported ${data.length} readings.`);
+    }catch(err){
+      alert("Could not read that file — expected a Caliper backup .json.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+// --- rendering ---
+function render(){
+  renderCards();
+  renderTable();
+  renderChart();
+}
+
+function unitOf(){
+  // use unit of most recent entry, default 'in'
+  return entries.length ? entries[entries.length-1].unit : 'in';
+}
+
+function firstLatestForPart(part){
+  const withPart = entries.filter(e => e.values[part] !== undefined);
+  if(withPart.length === 0) return null;
+  return {
+    first: withPart[0].values[part],
+    latest: withPart[withPart.length-1].values[part]
+  };
+}
+
+function renderCards(){
+  const wrap = document.getElementById('cards');
+  wrap.innerHTML = "";
+  const u = unitOf();
+  PARTS.forEach(part=>{
+    const stats = firstLatestForPart(part);
+    const card = document.createElement('div');
+    card.className = 'card' + (part === activePart ? ' active' : '');
+    card.addEventListener('click', ()=>{ activePart = part; render(); });
+
+    if(!stats){
+      card.innerHTML = `<div class="name">${part}</div><div class="latest" style="color:var(--muted); font-size:15px;">—</div>`;
+    } else {
+      const delta = stats.latest - stats.first;
+      const cls = delta > 0.001 ? 'up' : (delta < -0.001 ? 'down' : 'flat');
+      const sign = delta > 0 ? '+' : '';
+      card.innerHTML = `
+        <div class="name">${part}</div>
+        <div class="latest">${stats.latest.toFixed(1)}<span style="font-size:12px;color:var(--muted);"> ${u}</span></div>
+        <div class="delta ${cls}">${sign}${delta.toFixed(1)} since first</div>
+      `;
+    }
+    wrap.appendChild(card);
+  });
+}
+
+function renderTable(){
+  const head = document.getElementById('history-head');
+  const body = document.getElementById('history-body');
+  const emptyMsg = document.getElementById('empty-msg');
+  head.innerHTML = "";
+  body.innerHTML = "";
+
+  if(entries.length === 0){
+    emptyMsg.style.display = 'block';
+    document.getElementById('history-table').style.display = 'none';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  document.getElementById('history-table').style.display = 'table';
+
+  const cols = ["Date","Unit", ...PARTS, "Notes", ""];
+  cols.forEach(c=>{
+    const th = document.createElement('th');
+    th.textContent = c;
+    head.appendChild(th);
+  });
+
+  [...entries].reverse().forEach((entry)=>{
+    const tr = document.createElement('tr');
+    let cells = `<td>${entry.date}</td><td>${entry.unit}</td>`;
+    PARTS.forEach(p=>{
+      cells += `<td>${entry.values[p] !== undefined ? entry.values[p].toFixed(1) : '—'}</td>`;
+    });
+    cells += `<td style="white-space:normal; max-width:220px;">${entry.notes || ''}</td>`;
+    cells += `<td class="del">✕</td>`;
+    tr.innerHTML = cells;
+    tr.querySelector('.del').addEventListener('click', ()=> deleteEntry(entry.id));
+    body.appendChild(tr);
+  });
+}
+
+function renderChart(){
+  const title = document.getElementById('chart-title');
+  const sub = document.getElementById('chart-sub');
+  title.textContent = `Trend — ${activePart}`;
+
+  const points = entries.filter(e => e.values[activePart] !== undefined)
+                         .map(e => ({x: e.date, y: e.values[activePart]}));
+
+  if(points.length === 0){
+    sub.textContent = "No readings logged for this body part yet.";
+  } else {
+    sub.textContent = `${points.length} reading${points.length>1?'s':''} · ${unitOf()}`;
+  }
+
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: points.map(p => p.x),
+      datasets: [{
+        label: activePart,
+        data: points.map(p => p.y),
+        borderColor: '#E8A33D',
+        backgroundColor: 'rgba(232,163,61,0.15)',
+        pointBackgroundColor: '#E8A33D',
+        pointRadius: 4,
+        tension: 0.25,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: 'category',
+          grid: { color: '#2A2E36' },
+          ticks: { color: '#8B8F98', font: { family: 'JetBrains Mono', size: 11 } }
+        },
+        y: {
+          grid: { color: '#2A2E36' },
+          ticks: { color: '#8B8F98', font: { family: 'JetBrains Mono', size: 11 } }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+render();
+</script>
+</body>
+</html>
