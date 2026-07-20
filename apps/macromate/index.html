@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Macro Calculator</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="app">
+
+<h1>Fitness Macro Calculator</h1>
+
+<div class="form">
+
+<input type="number" id="age" placeholder="Age">
+
+<select id="gender">
+<option value="male">Male</option>
+<option value="female">Female</option>
+</select>
+
+<input type="number" id="height" placeholder="Height (cm)">
+
+<input type="number" id="weight" placeholder="Current Weight (lbs)">
+
+<input type="number" id="goalWeight" placeholder="Goal Weight (lbs)">
+
+<select id="activity">
+<option value="1.2">No Exercise</option>
+<option value="1.375">Light Exercise</option>
+<option value="1.55">Moderate Exercise</option>
+<option value="1.725">Heavy Exercise</option>
+</select>
+
+<button onclick="calculate()">Calculate Plan</button>
+
+</div>
+
+<div class="results" id="results"></div>
+
+<canvas id="weightChart"></canvas>
+
+<a class="back" href="../index.html">⬅ Back to Portfolio</a>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
