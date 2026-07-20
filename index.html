@@ -5,18 +5,159 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apps</title>
 
-    <link rel="stylesheet" href="style.css">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
+
+        :root{
+            --bg:#0a0509;
+            --card:#160d15;
+            --border:#3a1a30;
+            --hover:#1f1219;
+            --text:#ffffff;
+            --sub:#b79aad;
+            --accent:#ff2f9e;
+            --accent-2:#ff8ad1;
+        }
+
+        body{
+            background:
+                radial-gradient(circle at 15% 0%, rgba(255,47,158,0.16), transparent 55%),
+                radial-gradient(circle at 85% 100%, rgba(255,138,209,0.10), transparent 50%),
+                var(--bg);
+            color:var(--text);
+            font-family:"Inter",sans-serif;
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:30px;
+        }
+
+        .apps{
+            width:min(760px,100%);
+        }
+
+        .apps-title{
+            font-size:.8rem;
+            font-weight:600;
+            letter-spacing:.16em;
+            text-transform:uppercase;
+            margin-bottom:24px;
+            background:linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip:text;
+            background-clip:text;
+            color:transparent;
+        }
+
+        .app{
+            display:flex;
+            align-items:center;
+            gap:22px;
+
+            padding:22px;
+
+            background:var(--card);
+
+            border:1px solid var(--border);
+            border-radius:20px;
+
+            text-decoration:none;
+            color:inherit;
+
+            margin-bottom:18px;
+
+            transition:.25s ease;
+        }
+
+        .app:hover{
+            background:var(--hover);
+            border-color:var(--accent);
+            box-shadow:0 12px 32px -12px rgba(255,47,158,0.35);
+            transform:translateY(-4px);
+        }
+
+        .app-icon{
+            width:64px;
+            height:64px;
+
+            display:flex;
+            justify-content:center;
+            align-items:center;
+
+            border-radius:18px;
+
+            background:linear-gradient(135deg, var(--accent), var(--accent-2));
+
+            color:#ffffff;
+
+            font-size:26px;
+
+            flex-shrink:0;
+        }
+
+        .app-info{
+            flex:1;
+        }
+
+        .app-info h2{
+            font-size:1.3rem;
+            margin-bottom:6px;
+            font-weight:700;
+        }
+
+        .app-info p{
+            color:var(--sub);
+            line-height:1.5;
+        }
+
+        .arrow{
+            color:#7f8894;
+            font-size:20px;
+            transition:.2s;
+        }
+
+        .app:hover .arrow{
+            transform:translateX(6px);
+            color:var(--accent-2);
+        }
+
+        .soon{
+            text-align:center;
+            margin-top:35px;
+            color:#7a6a75;
+            font-size:.95rem;
+        }
+
+        @media (max-width:700px){
+
+            .app{
+                flex-direction:column;
+                align-items:flex-start;
+            }
+
+            .arrow{
+                display:none;
+            }
+
+        }
+    </style>
 </head>
 <body>
 
 <main class="apps">
+
+    <p class="apps-title">Apps</p>
 
     <a href="apps/macromate/" class="app">
         <div class="app-icon">
