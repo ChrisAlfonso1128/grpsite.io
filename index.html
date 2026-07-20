@@ -39,6 +39,7 @@
             font-family:"Inter",sans-serif;
             min-height:100vh;
             display:flex;
+            flex-direction:column;
             justify-content:center;
             align-items:center;
             padding:30px;
@@ -139,6 +140,26 @@
             font-size:.95rem;
         }
 
+        footer{
+            width:min(760px,100%);
+            text-align:center;
+            margin-top:40px;
+            padding-top:20px;
+            border-top:1px solid var(--border);
+        }
+
+        footer a{
+            color:var(--sub);
+            text-decoration:none;
+            font-size:.82rem;
+            font-weight:500;
+            transition:color .15s ease;
+        }
+
+        footer a:hover{
+            color:var(--accent-2);
+        }
+
         @media (max-width:700px){
 
             .app{
@@ -194,6 +215,10 @@
     <p class="soon">More apps coming soon.</p>
 
 </main>
+
+<footer>
+    <a href="legal_shit/policy/">Privacy Policy</a>
+</footer>
 
 </body>
 </html>
