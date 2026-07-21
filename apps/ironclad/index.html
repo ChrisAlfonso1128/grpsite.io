@@ -489,16 +489,6 @@ function signOutOfGoogle(){
   render();
 }
 
-// Tries to silently re-authenticate using Google's existing session/consent, with no
-// visible popup. Used on page load and to proactively refresh before the ~1hr token
-// expiry, so users don't have to keep manually clicking "Sign in."
-let pendingSilent = false;
-function attemptSilentSignIn(){
-  if(!tokenClient) return;
-  pendingSilent = true;
-  tokenClient.requestAccessToken({ prompt: 'none' });
-}
-
 if(cloudEnabled){
   if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
     console.warn('Google Identity Services script did not load — falling back to local-only mode.');
@@ -509,15 +499,8 @@ if(cloudEnabled){
       client_id: GOOGLE_CLIENT_ID,
       scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
       callback: async (resp)=>{
-        const wasSilent = pendingSilent;
-        pendingSilent = false;
         if(resp.error){
-          // A failed silent attempt is expected for anyone who hasn't signed in before —
-          // stay quiet about it. Only complain if the user explicitly clicked "Sign in."
-          if(!wasSilent){
-            alert('Sign-in failed: ' + resp.error);
-          }
-          updateSyncBar();
+          alert('Sign-in failed: ' + resp.error);
           return;
         }
         accessToken = resp.access_token;
@@ -529,20 +512,13 @@ if(cloudEnabled){
           await refreshTemplatesFromSheet();
         }catch(err){
           console.error(err);
-          if(!wasSilent) alert('Could not connect to Google Sheets: ' + err.message);
+          alert('Could not connect to Google Sheets: ' + err.message);
         }
         updateSyncBar();
       }
     });
-
-    // Try to silently pick up an existing Google session as soon as the page loads.
-    attemptSilentSignIn();
-    // Proactively refresh the token every 45 minutes so a long session doesn't
-    // suddenly hit the ~1hr expiry mid-use.
-    setInterval(()=>{ if(accessToken) attemptSilentSignIn(); }, 45 * 60 * 1000);
   }
 }
-
 
 async function gfetch(url, options = {}){
   const res = await fetch(url, {
@@ -554,10 +530,12 @@ async function gfetch(url, options = {}){
     }
   });
   if(res.status === 401){
+    // Token expired mid-session. We can't silently reconnect without a user click —
+    // Google's popup-based auth gets blocked by the browser if it's not triggered by
+    // one — so surface this clearly and let the sync bar's Sign in button handle it.
     accessToken = null;
     updateSyncBar();
-    attemptSilentSignIn(); // try to quietly recover for next time
-    throw new Error('Your session expired — please sign in again.');
+    throw new Error('Your session expired — click "Sign in with Google" to reconnect.');
   }
   if(!res.ok){
     const body = await res.text();
