@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poo-Man</title>
+<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1a10;
+    --wall:#2fbf71;
+    --wall-glow:rgba(47,191,113,0.5);
+    --panel:#0f2417;
+    --panel-border:#1f4a2e;
+    --text:#eafff0;
+    --muted:#7fae8f;
+    --accent:#ffd23f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px;
+    background:radial-gradient(circle at 50% 0%, #123a20, var(--bg));
+    color:var(--text);
+    font-family:'Chakra Petch', sans-serif;
+    overflow-x:hidden;
+  }
+
+  .back-link{
+    align-self:flex-start;
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--muted); text-decoration:none;
+    font-size:13px; margin-bottom:14px; font-weight:600;
+  }
+  .back-link:hover{ color:var(--accent); }
+
+  h1{
+    font-family:'Press Start 2P', cursive;
+    font-size:26px;
+    margin:0 0 4px;
+    text-align:center;
+    color:var(--accent);
+    text-shadow:0 0 16px rgba(255,210,63,0.4);
+  }
+  .subtitle{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:18px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  .hud{
+    display:flex;
+    gap:28px;
+    margin-bottom:14px;
+    align-items:center;
+  }
+  .hud .label{ font-size:10px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+  .hud .value{ font-family:'Press Start 2P', cursive; font-size:16px; }
+  .lives{ font-size:18px; }
+
+  .board-wrap{
+    position:relative;
+    border:3px solid var(--wall);
+    border-radius:6px;
+    box-shadow:0 0 24px var(--wall-glow);
+    background:#050d08;
+    width:min(475px, 92vw);
+  }
+  canvas{ display:block; width:100%; height:auto; }
+
+  .overlay{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:14px;
+    background:rgba(5,13,8,0.9);
+    text-align:center;
+    border-radius:4px;
+    padding:20px;
+  }
+  .overlay.show{ display:flex; }
+  .overlay h2{
+    font-family:'Press Start 2P', cursive;
+    font-size:22px;
+    margin:0;
+    color:var(--accent);
+  }
+  .overlay p{ margin:0; color:var(--muted); font-size:13px; }
+
+  button{
+    font-family:'Chakra Petch', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    background:var(--accent);
+    color:#1a1400;
+    border:none;
+    border-radius:6px;
+    padding:10px 22px;
+    cursor:pointer;
+    transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.1); }
+  button:active{ transform:scale(.96); }
+
+  .controls-hint{
+    margin-top:14px;
+    font-size:11px;
+    color:var(--muted);
+    text-align:center;
+  }
+
+  .touch-controls{
+    display:none;
+    margin-top:16px;
+    gap:6px;
+    grid-template-columns:repeat(3, 52px);
+    grid-template-rows:repeat(3, 52px);
+  }
+  .touch-controls button{ padding:0; font-size:18px; background:var(--panel); color:var(--text); border:1px solid var(--panel-border); }
+  @media (pointer:coarse){ .touch-controls{ display:grid; } }
+</style>
+</head>
+<body>
+
+<a class="back-link" href="../../index.html">← Arcade</a>
+<h1>POO-MAN</h1>
+<p class="subtitle">it's not yellow anymore</p>
+
+<div class="hud">
+  <div><div class="label">Score</div><div class="value" id="score">0</div></div>
+  <div><div class="label">Lives</div><div class="value lives" id="lives">💩💩💩</div></div>
+</div>
+
+<div class="board-wrap">
+  <canvas id="board" width="475" height="525"></canvas>
+  <div class="overlay" id="overlay">
+    <h2 id="overlay-title">GAME OVER</h2>
+    <p id="overlay-sub">score: 0</p>
+    <button id="restart-btn">Play Again</button>
+  </div>
+</div>
+
+<p class="controls-hint">Arrow keys or WASD to move. Eat the big dots to turn the ghosts scared.</p>
+
+<div class="touch-controls">
+  <div></div><button id="btn-up">▲</button><div></div>
+  <button id="btn-left">◀</button><button id="btn-down">▼</button><button id="btn-right">▶</button>
+</div>
+
+<script>
+const MAZE = [
+"###################",
+"#........#........#",
+"#.##.###.#.###.##.#",
+"#o##.###.#.###.##o#",
+"#.##.###.#.###.##.#",
+"...................",
+"#.##.#.#####.#.##.#",
+"#.##.#.#####.#.##.#",
+"#....#...#...#....#",
+"####.###.#.###.####",
+"####.#       #.####",
+"####.# ##### #.####",
+"####.#       #.####",
+"####.#########.####",
+"#........#........#",
+"#.##.###.#.###.##.#",
+"#o##.....P.....##o#",
+"#.##.#.#####.#.##.#",
+"#....#...#...#....#",
+"###################",
+"###################",
+];
+
+const COLS = MAZE[0].length, ROWS = MAZE.length, CELL = 25;
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+
+let grid, player, dir, nextDir, ghosts, score, lives, pelletsLeft, frightenedTimer, running, gameOver, gameWon;
+let prevPlayerPos = {x:0, y:0};
+
+function parseMaze(){
+  grid = MAZE.map(row => [...row]);
+  let playerStart = null;
+  const ghostSpawns = [];
+  for(let y=0; y<ROWS; y++){
+    for(let x=0; x<COLS; x++){
+      if(grid[y][x] === 'P'){ playerStart = {x, y}; grid[y][x] = '.'; }
+    }
+  }
+  // Ghost house interior (the open block in the middle) — collect open cells there as spawns.
+  for(let y=9; y<=13; y++){
+    for(let x=6; x<=12; x++){
+      if(grid[y] && grid[y][x] === ' ') ghostSpawns.push({x, y});
+    }
+  }
+  return { playerStart, ghostSpawns };
+}
+
+function isWall(x, y){
+  if(y < 0 || y >= ROWS || x < 0 || x >= COLS) return true;
+  return grid[y][x] === '#';
+}
+
+function cellChar(x, y){
+  if(y < 0 || y >= ROWS || x < 0 || x >= COLS) return '#';
+  return grid[y][x];
+}
+
+const GHOST_COLORS = ['#ff4f6e', '#ff9c3f', '#4fe0ff'];
+const GHOST_EMOJI = '👻';
+const SCARED_EMOJI = '😨';
+const EYES_EMOJI = '👀';
+
+function resetPositions(meta){
+  player = { x: meta.playerStart.x, y: meta.playerStart.y, px: meta.playerStart.x, py: meta.playerStart.y };
+  dir = {x:0, y:0};
+  nextDir = {x:0, y:0};
+
+  const spawns = meta.ghostSpawns.length >= 3 ? meta.ghostSpawns : [
+    {x:9,y:10},{x:8,y:10},{x:10,y:10}
+  ];
+  ghosts = GHOST_COLORS.map((color, i)=>({
+    x: spawns[i % spawns.length].x,
+    y: spawns[i % spawns.length].y,
+    color,
+    dir: {x: (i % 2 === 0 ? 1 : -1), y: 0},
+    scared: false,
+    eaten: false
+  }));
+}
+
+function resetGame(){
+  const meta = parseMaze();
+  resetPositions(meta);
+  score = 0;
+  lives = 3;
+  frightenedTimer = 0;
+  running = true;
+  gameOver = false;
+  gameWon = false;
+  pelletsLeft = 0;
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(grid[y][x]==='.' || grid[y][x]==='o') pelletsLeft++;
+  updateHud();
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function updateHud(){
+  document.getElementById('score').textContent = score;
+  document.getElementById('lives').textContent = '💩'.repeat(Math.max(lives, 0));
+}
+
+function canMove(x, y, dx, dy){
+  const tx = x + dx, ty = y + dy;
+  if(ty < 0 || ty >= ROWS) return false;
+  let wx = tx;
+  if(wx < 0) wx = COLS - 1;
+  if(wx >= COLS) wx = 0;
+  return grid[ty][wx] !== '#';
+}
+
+function wrapX(x){
+  if(x < 0) return COLS - 1;
+  if(x >= COLS) return 0;
+  return x;
+}
+
+function setDir(x, y){ nextDir = {x, y}; }
+
+function tickPlayer(){
+  prevPlayerPos = { x: player.x, y: player.y };
+
+  // try to turn if queued
+  if(canMove(player.x, player.y, nextDir.x, nextDir.y)){
+    dir = nextDir;
+  }
+  if(canMove(player.x, player.y, dir.x, dir.y)){
+    player.x = wrapX(player.x + dir.x);
+    player.y = player.y + dir.y;
+  }
+
+  const ch = cellChar(player.x, player.y);
+  if(ch === '.' ){
+    grid[player.y][player.x] = ' ';
+    score += 10;
+    pelletsLeft--;
+  } else if(ch === 'o'){
+    grid[player.y][player.x] = ' ';
+    score += 50;
+    pelletsLeft--;
+    frightenedTimer = 7000; // ms
+    ghosts.forEach(g=>{ if(!g.eaten) g.scared = true; });
+  }
+  updateHud();
+
+  if(pelletsLeft <= 0){
+    winGame();
+  }
+}
+
+function ghostChooseDir(g){
+  const options = [
+    {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}
+  ].filter(d => !(d.x === -g.dir.x && d.y === -g.dir.y)) // avoid reversing unless forced
+   .filter(d => canMove(g.x, g.y, d.x, d.y));
+
+  let candidates = options;
+  if(candidates.length === 0){
+    // dead end — allow reverse
+    candidates = [{x:-g.dir.x, y:-g.dir.y}].filter(d => canMove(g.x, g.y, d.x, d.y));
+    if(candidates.length === 0) return g.dir; // fully stuck (shouldn't happen in this maze)
+  }
+
+  if(g.eaten){
+    // head toward center (home) — pick option minimizing distance to (9,11)
+    const target = {x:9, y:10};
+    candidates.sort((a,b)=>{
+      const da = Math.hypot((g.x+a.x)-target.x, (g.y+a.y)-target.y);
+      const db = Math.hypot((g.x+b.x)-target.x, (g.y+b.y)-target.y);
+      return da - db;
+    });
+    return candidates[0];
+  }
+
+  if(g.scared){
+    // move away from player, with a little randomness
+    if(Math.random() < 0.3){
+      return candidates[Math.floor(Math.random()*candidates.length)];
+    }
+    candidates.sort((a,b)=>{
+      const da = Math.hypot((g.x+a.x)-player.x, (g.y+a.y)-player.y);
+      const db = Math.hypot((g.x+b.x)-player.x, (g.y+b.y)-player.y);
+      return db - da; // maximize distance
+    });
+    return candidates[0];
+  }
+
+  // normal chase, with occasional randomness so it's not perfectly optimal
+  if(Math.random() < 0.15){
+    return candidates[Math.floor(Math.random()*candidates.length)];
+  }
+  candidates.sort((a,b)=>{
+    const da = Math.hypot((g.x+a.x)-player.x, (g.y+a.y)-player.y);
+    const db = Math.hypot((g.x+b.x)-player.x, (g.y+b.y)-player.y);
+    return da - db; // minimize distance
+  });
+  return candidates[0];
+}
+
+function tickGhosts(delta){
+  ghosts.forEach(g=>{
+    const prevGhostPos = { x: g.x, y: g.y };
+    const d = ghostChooseDir(g);
+    g.dir = d;
+    g.x = wrapX(g.x + d.x);
+    g.y = g.y + d.y;
+    g.prevX = prevGhostPos.x;
+    g.prevY = prevGhostPos.y;
+
+    if(g.eaten && g.x === 9 && g.y === 10){
+      g.eaten = false;
+      g.scared = false;
+    }
+  });
+
+  if(frightenedTimer > 0){
+    frightenedTimer -= delta;
+    if(frightenedTimer <= 0){
+      frightenedTimer = 0;
+      ghosts.forEach(g=>{ if(!g.eaten) g.scared = false; });
+    }
+  }
+
+  // Collision check — catches both landing on the same cell AND the "swap" case where
+  // the player and a ghost pass through each other by moving toward one another in the
+  // same tick (same-cell-only checks miss this, which was making eaten ghosts feel like
+  // they never registered).
+  ghosts.forEach(g=>{
+    if(g.eaten) return;
+    const sameCell = g.x === player.x && g.y === player.y;
+    const swapped = g.x === prevPlayerPos.x && g.y === prevPlayerPos.y
+                  && player.x === g.prevX && player.y === g.prevY;
+    if(sameCell || swapped){
+      if(g.scared){
+        g.eaten = true;
+        g.scared = false;
+        score += 200;
+        updateHud();
+      } else {
+        loseLife();
+      }
+    }
+  });
+}
+
+function loseLife(){
+  lives--;
+  updateHud();
+  if(lives <= 0){
+    endGame(false);
+  } else {
+    const meta = { playerStart: findPlayerStartCoords(), ghostSpawns: currentGhostSpawns() };
+    resetPositions(meta);
+  }
+}
+
+function findPlayerStartCoords(){
+  // player start cell is always walkable center-bottom area; recompute from original maze row 16
+  for(let x=0; x<COLS; x++){
+    if(MAZE[16][x] === 'P') return {x, y:16};
+  }
+  return {x:9, y:16};
+}
+function currentGhostSpawns(){
+  const spawns = [];
+  for(let y=9; y<=13; y++){
+    for(let x=6; x<=12; x++){
+      if(grid[y] && grid[y][x] === ' ') spawns.push({x, y});
+    }
+  }
+  return spawns.length ? spawns : [{x:9,y:10},{x:8,y:10},{x:10,y:10}];
+}
+
+function winGame(){
+  running = false;
+  gameOver = true;
+  gameWon = true;
+  document.getElementById('overlay-title').textContent = 'YOU WIN!';
+  document.getElementById('overlay-sub').textContent = `score: ${score} — every last crumb, gone`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function endGame(){
+  running = false;
+  gameOver = true;
+  document.getElementById('overlay-title').textContent = 'GAME OVER';
+  document.getElementById('overlay-sub').textContent = `score: ${score}`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+// --- drawing ---
+function draw(){
+  ctx.fillStyle = '#050d08';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for(let y=0; y<ROWS; y++){
+    for(let x=0; x<COLS; x++){
+      const ch = grid[y][x];
+      const cx = x*CELL, cy = y*CELL;
+      if(ch === '#'){
+        ctx.fillStyle = '#123a20';
+        ctx.strokeStyle = '#2fbf71';
+        ctx.lineWidth = 2;
+        ctx.fillRect(cx+1, cy+1, CELL-2, CELL-2);
+        ctx.strokeRect(cx+2, cy+2, CELL-4, CELL-4);
+      } else if(ch === '.'){
+        ctx.fillStyle = '#ffd23f';
+        ctx.beginPath();
+        ctx.arc(cx+CELL/2, cy+CELL/2, 3, 0, Math.PI*2);
+        ctx.fill();
+      } else if(ch === 'o'){
+        ctx.fillStyle = '#ffd23f';
+        ctx.shadowColor = '#ffd23f';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(cx+CELL/2, cy+CELL/2, 7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+
+  // player (poop emoji)
+  ctx.font = `${CELL-2}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💩', player.x*CELL + CELL/2, player.y*CELL + CELL/2 + 1);
+
+  // ghosts
+  ghosts.forEach(g=>{
+    let emoji = GHOST_EMOJI;
+    if(g.eaten) emoji = EYES_EMOJI;
+    else if(g.scared) emoji = (frightenedTimer < 1500 && Math.floor(frightenedTimer/200) % 2 === 0) ? GHOST_EMOJI : SCARED_EMOJI;
+    ctx.fillText(emoji, g.x*CELL + CELL/2, g.y*CELL + CELL/2 + 1);
+  });
+}
+
+// --- main loop ---
+let lastTime = 0, moveTimer = 0;
+const MOVE_INTERVAL = 160; // ms per grid step
+
+function loop(timestamp){
+  if(!lastTime) lastTime = timestamp;
+  const delta = timestamp - lastTime;
+  lastTime = timestamp;
+
+  if(running){
+    moveTimer += delta;
+    if(moveTimer > MOVE_INTERVAL){
+      moveTimer = 0;
+      tickPlayer();
+      if(running) tickGhosts(MOVE_INTERVAL);
+    }
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', (e)=>{
+  switch(e.key){
+    case 'ArrowUp': case 'w': case 'W': setDir(0,-1); e.preventDefault(); break;
+    case 'ArrowDown': case 's': case 'S': setDir(0,1); e.preventDefault(); break;
+    case 'ArrowLeft': case 'a': case 'A': setDir(-1,0); e.preventDefault(); break;
+    case 'ArrowRight': case 'd': case 'D': setDir(1,0); e.preventDefault(); break;
+  }
+});
+document.getElementById('btn-up').addEventListener('click', ()=> setDir(0,-1));
+document.getElementById('btn-down').addEventListener('click', ()=> setDir(0,1));
+document.getElementById('btn-left').addEventListener('click', ()=> setDir(-1,0));
+document.getElementById('btn-right').addEventListener('click', ()=> setDir(1,0));
+document.getElementById('restart-btn').addEventListener('click', resetGame);
+
+resetGame();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
