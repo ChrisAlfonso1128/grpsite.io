@@ -406,12 +406,14 @@ const TEMPLATES_COLUMNS = ["Template","Exercise","SetNumber","Reps","Weight","Un
 const STORAGE_KEY = "ironlog_days_v1";
 const TEMPLATES_STORAGE_KEY = "ironlog_templates_v1";
 const SHEET_ID_CACHE_KEY = "ironlog_sheet_id";
+const SESSION_TOKEN_KEY = "ironlog_google_session";
 
 let cloudEnabled = (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_CLIENT_ID.apps.googleusercontent.com");
 let days = loadLocalDays();
 let templates = loadLocalTemplates();
 let draftExercises = []; // exercises being built for the day currently being logged
 let accessToken = null;
+let tokenExpiresAt = null;
 let userEmail = null;
 let tokenClient = null;
 let spreadsheetId = localStorage.getItem(SHEET_ID_CACHE_KEY) || null;
@@ -484,9 +486,45 @@ function signOutOfGoogle(){
   userEmail = null;
   spreadsheetId = null;
   localStorage.removeItem(SHEET_ID_CACHE_KEY);
+  sessionStorage.removeItem(SESSION_TOKEN_KEY);
   updateSyncBar();
   days = loadLocalDays();
   render();
+}
+
+function persistSession(){
+  if(!accessToken) return;
+  sessionStorage.setItem(SESSION_TOKEN_KEY, JSON.stringify({
+    access_token: accessToken,
+    expires_at: tokenExpiresAt,
+    email: userEmail
+  }));
+}
+
+// Restores a still-valid token from sessionStorage on page load, so a reload within
+// the same browser tab doesn't force a fresh sign-in. sessionStorage clears itself
+// when the tab actually closes, so this doesn't linger indefinitely.
+async function restoreSession(){
+  try{
+    const raw = sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if(!raw) return;
+    const cached = JSON.parse(raw);
+    if(!cached.access_token || !cached.expires_at || cached.expires_at <= Date.now() + 60000){
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      return;
+    }
+    accessToken = cached.access_token;
+    tokenExpiresAt = cached.expires_at;
+    userEmail = cached.email || null;
+    updateSyncBar();
+    await ensureSpreadsheet();
+    await refreshFromSheet();
+    await refreshTemplatesFromSheet();
+    updateSyncBar();
+  }catch(err){
+    console.warn('Could not restore saved session:', err);
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
+  }
 }
 
 if(cloudEnabled){
@@ -504,9 +542,12 @@ if(cloudEnabled){
           return;
         }
         accessToken = resp.access_token;
+        tokenExpiresAt = Date.now() + (parseInt(resp.expires_in, 10) || 3600) * 1000;
+        persistSession();
         updateSyncBar();
         try{
           await fetchUserEmail();
+          persistSession(); // now includes the email
           await ensureSpreadsheet();
           await refreshFromSheet();
           await refreshTemplatesFromSheet();
@@ -517,6 +558,8 @@ if(cloudEnabled){
         updateSyncBar();
       }
     });
+
+    restoreSession();
   }
 }
 
@@ -530,10 +573,10 @@ async function gfetch(url, options = {}){
     }
   });
   if(res.status === 401){
-    // Token expired mid-session. We can't silently reconnect without a user click —
-    // Google's popup-based auth gets blocked by the browser if it's not triggered by
-    // one — so surface this clearly and let the sync bar's Sign in button handle it.
+    // Token actually expired (not just a reload) — this genuinely needs a fresh click,
+    // since Google's popup auth gets blocked by the browser without one.
     accessToken = null;
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
     updateSyncBar();
     throw new Error('Your session expired — click "Sign in with Google" to reconnect.');
   }
