@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ironclad — Workout Tracker</title>
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client"></script>
+<style>
+  :root{
+    --bg:#0a0509;
+    --card:#160d15;
+    --card-2:#1c1119;
+    --border:#3a1a30;
+    --hover:#1f1219;
+    --text:#ffffff;
+    --sub:#c3aebb;
+    --muted:#8b7a86;
+    --accent:#ff2f9e;
+    --accent-2:#ff8ad1;
+    --green:#6fcf97;
+    --red:#e0725c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,47,158,0.14), transparent 55%),
+      radial-gradient(circle at 85% 100%, rgba(255,138,209,0.08), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent);color:#fff;}
+
+  .sync-bar{
+    max-width:1000px;
+    margin:0 auto;
+    padding:14px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .sync-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--muted);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0;}
+  .dot.on{background:var(--green);}
+  .dot.off{background:var(--muted);}
+  button{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    padding:10px 18px;
+    cursor:pointer;
+    transition:transform .08s ease, border-color .15s ease;
+    background:transparent;
+    color:var(--text);
+  }
+  button:active{transform:scale(.97);}
+  .btn-google{ background:var(--card-2); color:var(--text); }
+  .btn-google:hover{border-color:var(--accent);}
+  .btn-ghost{ color:var(--muted); }
+  .btn-ghost:hover{color:var(--text); border-color:var(--muted);}
+  .btn-primary{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#1a0512;
+    border:none;
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-small{ padding:6px 12px; font-size:12px; }
+  .btn-danger{ color:var(--red); border-color:var(--red); }
+
+  header{
+    max-width:1000px;
+    margin:0 auto;
+    padding:40px 24px 24px;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--muted); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    letter-spacing:.04em; margin-bottom:20px;
+    transition:color .15s ease;
+  }
+  .back-link:hover{color:var(--accent-2);}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent-2); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(40px,7vw,64px);
+    letter-spacing:.02em;
+    margin:0 0 8px;
+    line-height:.95;
+    background:linear-gradient(90deg, #ffffff, var(--accent-2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  header p{ color:var(--sub); max-width:56ch; margin:0; font-size:15px; }
+
+  main{
+    max-width:1000px;
+    margin:0 auto;
+    padding:0 24px 80px;
+    display:grid;
+    gap:24px;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:24px;
+  }
+  .panel h2{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:22px; letter-spacing:.03em; margin:0 0 4px;
+  }
+  .panel .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
+
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  }
+  .field input, .field select, .field textarea{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:9px 10px;
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);
+  }
+
+  .day-meta{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:14px;
+    margin-bottom:22px;
+  }
+
+  /* --- exercise builder --- */
+  .exercise-block{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .exercise-block-head{
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    margin-bottom:12px;
+  }
+  .exercise-block-head .field{ flex:1; }
+  .sets-table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    margin-bottom:10px;
+  }
+  .sets-table th{
+    text-align:left;
+    color:var(--muted);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    font-weight:500;
+    padding:6px 8px;
+  }
+  .sets-table td{
+    padding:5px 8px;
+  }
+  .sets-table input{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:5px;
+    padding:6px 8px;
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+  }
+  .sets-table input:focus{ outline:2px solid var(--accent); border-color:var(--accent); }
+  .set-del{
+    cursor:pointer; color:var(--muted); text-align:center;
+  }
+  .set-del:hover{ color:var(--red); }
+  .row-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:20px; gap:12px; flex-wrap:wrap;
+  }
+
+  /* --- history --- */
+  .day-card{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px 18px;
+    margin-bottom:12px;
+  }
+  .day-card-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+    gap:12px;
+  }
+  .day-card-date{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:15px;
+  }
+  .day-card-stats{
+    color:var(--muted);
+    font-size:12px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .day-card-body{
+    margin-top:14px;
+    display:none;
+  }
+  .day-card.open .day-card-body{ display:block; }
+  .day-card-exercise{
+    padding:10px 0;
+    border-top:1px solid var(--border);
+  }
+  .day-card-exercise:first-child{ border-top:none; }
+  .day-card-exercise-name{
+    font-weight:600;
+    font-size:14px;
+    margin-bottom:6px;
+  }
+  .set-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:4px 10px;
+    margin:0 6px 6px 0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--sub);
+  }
+  .set-chip .effort{ color:var(--accent-2); }
+  .day-notes{
+    color:var(--muted);
+    font-size:12px;
+    margin-top:10px;
+    font-style:italic;
+  }
+  .chevron{
+    color:var(--muted);
+    transition:transform .2s ease;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .day-card.open .chevron{ transform:rotate(90deg); }
+
+  .empty{ color:var(--muted); font-size:14px; padding:32px 0; text-align:center; }
+
+  /* --- templates / routines --- */
+  .template-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:12px;
+  }
+  .template-card{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+  }
+  .template-card h3{
+    font-size:15px;
+    margin:0 0 8px;
+    color:var(--accent-2);
+  }
+  .template-card .ex-list{
+    color:var(--sub);
+    font-size:12px;
+    font-family:'JetBrains Mono',monospace;
+    line-height:1.6;
+    margin-bottom:12px;
+  }
+  .template-card .tpl-actions{
+    display:flex;
+    gap:8px;
+  }
+
+  footer{
+    max-width:1000px; margin:0 auto; padding:0 24px 60px;
+    color:var(--muted); font-size:12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sync-bar">
+  <div class="sync-status">
+    <span class="dot off" id="sync-dot"></span>
+    <span id="sync-text">Not connected · saving to this browser only</span>
+  </div>
+  <div id="sync-actions">
+    <button class="btn-google" id="signin-btn">Sign in with Google</button>
+  </div>
+</div>
+
+<header>
+  <a class="back-link" href="../../index.html">← Apps</a>
+  <p class="eyebrow">// day-by-day workout log</p>
+  <h1>IRONCLAD</h1>
+  <p>Log your workouts one day at a time — exercises, sets, reps, weight, and how hard each set felt.</p>
+</header>
+
+<main>
+
+  <!-- Log a day -->
+  <section class="panel">
+    <h2>Log a Day</h2>
+    <p class="sub">Add exercises and sets below, then save the whole session at once.</p>
+
+    <div class="day-meta">
+      <div class="field">
+        <label for="f-date">Date</label>
+        <input type="date" id="f-date" required>
+      </div>
+      <div class="field">
+        <label for="f-daynotes">Notes (optional)</label>
+        <input type="text" id="f-daynotes" placeholder="e.g. push day, felt strong">
+      </div>
+    </div>
+
+    <div id="exercise-builder"></div>
+
+    <button type="button" class="btn-ghost" id="add-exercise-btn">+ Add Exercise</button>
+
+    <div class="row-actions">
+      <div style="display:flex; gap:10px;">
+        <button type="button" id="export-btn" class="btn-ghost">Export backup (.json)</button>
+        <button type="button" id="import-btn" class="btn-ghost">Import backup</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none;">
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button type="button" id="save-template-btn" class="btn-ghost">Save as Routine</button>
+        <button type="button" id="save-day-btn" class="btn-primary">Save Day</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Saved Routines -->
+  <section class="panel">
+    <h2>Saved Routines</h2>
+    <p class="sub">Push Day, Pull Day, Leg Day — whatever splits you use. Load one into today's log, then just adjust the weights.</p>
+    <div class="template-grid" id="templates"></div>
+    <p class="empty" id="empty-templates-msg" style="display:none;">No saved routines yet — build a workout above and hit "Save as Routine."</p>
+  </section>
+
+  <!-- History -->
+  <section class="panel">
+    <h2>History</h2>
+    <p class="sub">Tap a day to expand it. Most recent first.</p>
+    <div id="history"></div>
+    <p class="empty" id="empty-msg" style="display:none;">No workouts logged yet — add your first day above.</p>
+  </section>
+
+</main>
+
+<footer>
+  Signed out: data is stored only in this browser (localStorage). Signed in with Google: your workouts save directly into an "Ironclad Workouts" spreadsheet in your own Google Drive — nobody but you can see it. Export a backup .json anytime as a manual safety net.
+</footer>
+
+<script>
+// ============================================================
+// GOOGLE SIGN-IN — reuses the same OAuth client as Caliper.
+// ============================================================
+const GOOGLE_CLIENT_ID = "449836811654-uan5d65v9eo8q626d7vkpin13lfpr9q0.apps.googleusercontent.com";
+const SHEET_TITLE = "Ironclad Workouts";
+const SHEET_TAB = "Sheet1";
+const SHEET_COLUMNS = ["Date","Exercise","SetNumber","Reps","Weight","Unit","Effort","Notes"];
+const TEMPLATES_TAB = "Templates";
+const TEMPLATES_COLUMNS = ["Template","Exercise","SetNumber","Reps","Weight","Unit"];
+const STORAGE_KEY = "ironlog_days_v1";
+const TEMPLATES_STORAGE_KEY = "ironlog_templates_v1";
+const SHEET_ID_CACHE_KEY = "ironlog_sheet_id";
+
+let cloudEnabled = (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "YOUR_CLIENT_ID.apps.googleusercontent.com");
+let days = loadLocalDays();
+let templates = loadLocalTemplates();
+let draftExercises = []; // exercises being built for the day currently being logged
+let accessToken = null;
+let userEmail = null;
+let tokenClient = null;
+let spreadsheetId = localStorage.getItem(SHEET_ID_CACHE_KEY) || null;
+let sheetGid = null;
+let templatesGid = null;
+let gsiBlocked = false;
+
+function loadLocalDays(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveLocalDays(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(days));
+}
+function loadLocalTemplates(){
+  try{
+    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveLocalTemplates(){
+  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+}
+function makeId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'd_' + Date.now() + '_' + Math.random().toString(16).slice(2));
+}
+
+// --- Sync bar ---
+const syncDot = document.getElementById('sync-dot');
+const syncText = document.getElementById('sync-text');
+const syncActions = document.getElementById('sync-actions');
+
+function updateSyncBar(){
+  if(!cloudEnabled){
+    syncDot.className = 'dot off';
+    syncText.textContent = gsiBlocked
+      ? 'Google sign-in script was blocked (likely an ad blocker) · saving to this browser only'
+      : 'Cloud sync not set up · saving to this browser only';
+    syncActions.innerHTML = `<button class="btn-google" id="signin-btn">Sign in with Google</button>`;
+    document.getElementById('signin-btn').addEventListener('click', ()=>{
+      alert(gsiBlocked
+        ? 'The Google sign-in script failed to load — likely blocked by an ad blocker or privacy extension.'
+        : 'Cloud sync isn\'t configured.');
+    });
+    return;
+  }
+  if(accessToken){
+    syncDot.className = 'dot on';
+    syncText.textContent = userEmail ? `Saving to ${userEmail}'s Google Sheet` : 'Saving to your Google Sheet';
+    syncActions.innerHTML = `<button class="btn-ghost" id="signout-btn">Sign out</button>`;
+    document.getElementById('signout-btn').addEventListener('click', signOutOfGoogle);
+  } else {
+    syncDot.className = 'dot off';
+    syncText.textContent = 'Not signed in · saving to this browser only';
+    syncActions.innerHTML = `<button class="btn-google" id="signin-btn">Sign in with Google</button>`;
+    document.getElementById('signin-btn').addEventListener('click', signIn);
+  }
+}
+
+function signIn(){
+  if(!tokenClient) return;
+  tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+}
+
+function signOutOfGoogle(){
+  if(accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); }
+  accessToken = null;
+  userEmail = null;
+  spreadsheetId = null;
+  localStorage.removeItem(SHEET_ID_CACHE_KEY);
+  updateSyncBar();
+  days = loadLocalDays();
+  render();
+}
+
+if(cloudEnabled){
+  if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
+    console.warn('Google Identity Services script did not load — falling back to local-only mode.');
+    cloudEnabled = false;
+    gsiBlocked = true;
+  } else {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+      callback: async (resp)=>{
+        if(resp.error){
+          alert('Sign-in failed: ' + resp.error);
+          return;
+        }
+        accessToken = resp.access_token;
+        updateSyncBar();
+        try{
+          await fetchUserEmail();
+          await ensureSpreadsheet();
+          await refreshFromSheet();
+          await refreshTemplatesFromSheet();
+        }catch(err){
+          console.error(err);
+          alert('Could not connect to Google Sheets: ' + err.message);
+        }
+        updateSyncBar();
+      }
+    });
+  }
+}
+
+async function gfetch(url, options = {}){
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.body ? {'Content-Type': 'application/json'} : {})
+    }
+  });
+  if(res.status === 401){
+    accessToken = null;
+    updateSyncBar();
+    throw new Error('Your session expired — please sign in again.');
+  }
+  if(!res.ok){
+    const body = await res.text();
+    throw new Error(`${res.status}: ${body.slice(0,200)}`);
+  }
+  return res.json();
+}
+
+async function fetchUserEmail(){
+  const info = await gfetch('https://www.googleapis.com/oauth2/v3/userinfo');
+  userEmail = info.email || null;
+}
+
+async function ensureSpreadsheet(){
+  if(spreadsheetId){
+    try{
+      const meta = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`);
+      sheetGid = meta.sheets.find(s => s.properties.title === SHEET_TAB)?.properties.sheetId;
+      await ensureTemplatesTab(meta);
+      return;
+    }catch(e){ spreadsheetId = null; }
+  }
+
+  const q = encodeURIComponent(`name='${SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const found = await gfetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+
+  if(found.files && found.files.length > 0){
+    spreadsheetId = found.files[0].id;
+    const meta = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`);
+    sheetGid = meta.sheets.find(s => s.properties.title === SHEET_TAB)?.properties.sheetId;
+    await ensureTemplatesTab(meta);
+  } else {
+    const created = await gfetch('https://sheets.googleapis.com/v4/spreadsheets', {
+      method: 'POST',
+      body: JSON.stringify({
+        properties: { title: SHEET_TITLE },
+        sheets: [
+          { properties: { title: SHEET_TAB } },
+          { properties: { title: TEMPLATES_TAB } }
+        ]
+      })
+    });
+    spreadsheetId = created.spreadsheetId;
+    sheetGid = created.sheets.find(s => s.properties.title === SHEET_TAB).properties.sheetId;
+    templatesGid = created.sheets.find(s => s.properties.title === TEMPLATES_TAB).properties.sheetId;
+
+    await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A1:H1?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [SHEET_COLUMNS] })
+    });
+    await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${TEMPLATES_TAB}!A1:F1?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [TEMPLATES_COLUMNS] })
+    });
+
+    const localBackup = loadLocalDays();
+    if(localBackup.length > 0){
+      const upload = confirm(`You have ${localBackup.length} day(s) saved on this device. Copy them into your new Google Sheet now?`);
+      if(upload){
+        const rows = [];
+        localBackup.forEach(day => rows.push(...dayToRows(day)));
+        if(rows.length){
+          await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+            method: 'POST',
+            body: JSON.stringify({ values: rows })
+          });
+        }
+      }
+    }
+
+    const localTemplates = loadLocalTemplates();
+    if(localTemplates.length > 0){
+      const upload = confirm(`You also have ${localTemplates.length} saved routine(s) on this device. Copy them into your new Google Sheet too?`);
+      if(upload){
+        const rows = [];
+        localTemplates.forEach(t => rows.push(...templateToRows(t)));
+        if(rows.length){
+          await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${TEMPLATES_TAB}!A2:F:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+            method: 'POST',
+            body: JSON.stringify({ values: rows })
+          });
+        }
+      }
+    }
+  }
+  localStorage.setItem(SHEET_ID_CACHE_KEY, spreadsheetId);
+}
+
+// Handles spreadsheets created before the Templates tab existed — adds it if missing.
+async function ensureTemplatesTab(meta){
+  const existing = meta.sheets.find(s => s.properties.title === TEMPLATES_TAB);
+  if(existing){
+    templatesGid = existing.properties.sheetId;
+    return;
+  }
+  const result = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [{ addSheet: { properties: { title: TEMPLATES_TAB } } } ]
+    })
+  });
+  templatesGid = result.replies[0].addSheet.properties.sheetId;
+  await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${TEMPLATES_TAB}!A1:F1?valueInputOption=RAW`, {
+    method: 'PUT',
+    body: JSON.stringify({ values: [TEMPLATES_COLUMNS] })
+  });
+}
+
+function dayToRows(day){
+  const rows = [];
+  day.exercises.forEach(ex=>{
+    ex.sets.forEach((set, i)=>{
+      rows.push([
+        day.date, ex.name, i + 1,
+        set.reps !== undefined && set.reps !== '' ? set.reps : '',
+        set.weight !== undefined && set.weight !== '' ? set.weight : '',
+        set.unit || 'lb',
+        set.effort !== undefined && set.effort !== '' ? set.effort : '',
+        day.notes || ''
+      ]);
+    });
+  });
+  return rows;
+}
+
+function rowsToDay(date, rowsForDate){
+  // rowsForDate: [{row: [...], rowNumber}, ...] all sharing the same date, in sheet order
+  const exercisesMap = new Map();
+  let notes = '';
+  const rowNumbers = [];
+  rowsForDate.forEach(({row, rowNumber})=>{
+    rowNumbers.push(rowNumber);
+    const exName = row[1] || 'Exercise';
+    if(!exercisesMap.has(exName)) exercisesMap.set(exName, []);
+    exercisesMap.get(exName).push({
+      reps: row[3] !== undefined && row[3] !== '' ? parseFloat(row[3]) : undefined,
+      weight: row[4] !== undefined && row[4] !== '' ? parseFloat(row[4]) : undefined,
+      unit: row[5] || 'lb',
+      effort: row[6] !== undefined && row[6] !== '' ? parseFloat(row[6]) : undefined,
+    });
+    if(row[7]) notes = row[7];
+  });
+  return {
+    id: date,
+    date,
+    notes,
+    rowNumbers,
+    exercises: Array.from(exercisesMap.entries()).map(([name, sets])=> ({name, sets}))
+  };
+}
+
+async function refreshFromSheet(){
+  const data = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:H`);
+  const rows = data.values || [];
+  const byDate = new Map();
+  rows.forEach((row, i)=>{
+    const date = row[0] || '';
+    if(!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date).push({ row, rowNumber: i + 2 });
+  });
+  days = Array.from(byDate.entries()).map(([date, rowsForDate])=> rowsToDay(date, rowsForDate));
+  days.sort((a,b)=> a.date.localeCompare(b.date));
+  render();
+}
+
+updateSyncBar();
+document.getElementById('f-date').valueAsDate = new Date();
+
+// --- add / delete day ---
+async function addDay(day){
+  if(accessToken && spreadsheetId){
+    try{
+      const rows = dayToRows(day);
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEET_TAB}!A2:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+        method: 'POST',
+        body: JSON.stringify({ values: rows })
+      });
+      await refreshFromSheet();
+    }catch(err){
+      alert('Could not save to Google Sheets: ' + err.message);
+    }
+  } else {
+    day.id = makeId();
+    // Replace any existing local entry for the same date rather than duplicating.
+    days = days.filter(d => d.date !== day.date);
+    days.push(day);
+    days.sort((a,b)=> a.date.localeCompare(b.date));
+    saveLocalDays();
+    render();
+  }
+}
+
+async function deleteDay(id){
+  if(!confirm("Delete this whole day's workout?")) return;
+  if(accessToken && spreadsheetId){
+    const day = days.find(d => d.id === id);
+    if(!day || !day.rowNumbers || day.rowNumbers.length === 0) return;
+    try{
+      const requests = [...day.rowNumbers]
+        .sort((a,b)=> b - a) // descending so deletes don't shift earlier row indices
+        .map(rowNumber => ({
+          deleteDimension: {
+            range: { sheetId: sheetGid, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber }
+          }
+        }));
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({ requests })
+      });
+      await refreshFromSheet();
+    }catch(err){
+      alert('Could not delete from Google Sheets: ' + err.message);
+    }
+  } else {
+    days = days.filter(d => d.id !== id);
+    saveLocalDays();
+    render();
+  }
+}
+
+// ============================================================
+// Templates (saved routines) — same pattern as days, keyed by name instead of date
+// ============================================================
+function templateToRows(t){
+  const rows = [];
+  t.exercises.forEach(ex=>{
+    ex.sets.forEach((set, i)=>{
+      rows.push([
+        t.name, ex.name, i + 1,
+        set.reps !== undefined && set.reps !== '' ? set.reps : '',
+        set.weight !== undefined && set.weight !== '' ? set.weight : '',
+        set.unit || 'lb'
+      ]);
+    });
+  });
+  return rows;
+}
+
+function rowsToTemplate(name, rowsForName){
+  const exercisesMap = new Map();
+  const rowNumbers = [];
+  rowsForName.forEach(({row, rowNumber})=>{
+    rowNumbers.push(rowNumber);
+    const exName = row[1] || 'Exercise';
+    if(!exercisesMap.has(exName)) exercisesMap.set(exName, []);
+    exercisesMap.get(exName).push({
+      reps: row[3] !== undefined && row[3] !== '' ? parseFloat(row[3]) : undefined,
+      weight: row[4] !== undefined && row[4] !== '' ? parseFloat(row[4]) : undefined,
+      unit: row[5] || 'lb',
+    });
+  });
+  return {
+    id: name,
+    name,
+    rowNumbers,
+    exercises: Array.from(exercisesMap.entries()).map(([exName, sets])=> ({name: exName, sets}))
+  };
+}
+
+async function refreshTemplatesFromSheet(){
+  const data = await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${TEMPLATES_TAB}!A2:F`);
+  const rows = data.values || [];
+  const byName = new Map();
+  rows.forEach((row, i)=>{
+    const name = row[0] || '';
+    if(!byName.has(name)) byName.set(name, []);
+    byName.get(name).push({ row, rowNumber: i + 2 });
+  });
+  templates = Array.from(byName.entries()).map(([name, rowsForName])=> rowsToTemplate(name, rowsForName));
+  templates.sort((a,b)=> a.name.localeCompare(b.name));
+  renderTemplates();
+}
+
+async function addTemplate(t){
+  if(accessToken && spreadsheetId){
+    try{
+      // Remove any existing routine with the same name first, so saving overwrites rather than duplicates.
+      const existing = templates.find(x => x.name === t.name);
+      if(existing) await deleteTemplateRowsOnly(existing);
+      const rows = templateToRows(t);
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${TEMPLATES_TAB}!A2:F:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+        method: 'POST',
+        body: JSON.stringify({ values: rows })
+      });
+      await refreshTemplatesFromSheet();
+    }catch(err){
+      alert('Could not save routine to Google Sheets: ' + err.message);
+    }
+  } else {
+    t.id = t.name;
+    templates = templates.filter(x => x.name !== t.name);
+    templates.push(t);
+    templates.sort((a,b)=> a.name.localeCompare(b.name));
+    saveLocalTemplates();
+    renderTemplates();
+  }
+}
+
+// Deletes a template's rows from the sheet without refreshing/re-rendering — used internally by addTemplate's overwrite step.
+async function deleteTemplateRowsOnly(t){
+  if(!t.rowNumbers || t.rowNumbers.length === 0) return;
+  const requests = [...t.rowNumbers]
+    .sort((a,b)=> b - a)
+    .map(rowNumber => ({
+      deleteDimension: {
+        range: { sheetId: templatesGid, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber }
+      }
+    }));
+  await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ requests })
+  });
+}
+
+async function deleteTemplate(id){
+  if(!confirm("Delete this saved routine?")) return;
+  if(accessToken && spreadsheetId){
+    const t = templates.find(x => x.id === id);
+    if(!t) return;
+    try{
+      await deleteTemplateRowsOnly(t);
+      await refreshTemplatesFromSheet();
+    }catch(err){
+      alert('Could not delete routine from Google Sheets: ' + err.message);
+    }
+  } else {
+    templates = templates.filter(x => x.id !== id);
+    saveLocalTemplates();
+    renderTemplates();
+  }
+}
+
+function loadTemplateIntoDraft(id){
+  const t = templates.find(x => x.id === id);
+  if(!t) return;
+  if(draftExercises.some(ex => ex.name || ex.sets.some(s => s.reps || s.weight))){
+    if(!confirm(`Load "${t.name}"? This will replace what you've currently got in the builder.`)) return;
+  }
+  draftExercises = t.exercises.map(ex => ({
+    name: ex.name,
+    sets: ex.sets.map(s => ({
+      reps: s.reps !== undefined ? String(s.reps) : '',
+      weight: s.weight !== undefined ? String(s.weight) : '',
+      unit: s.unit || 'lb',
+      effort: ''
+    }))
+  }));
+  renderBuilder();
+  document.querySelector('.panel').scrollIntoView({behavior:'smooth'});
+}
+
+// ============================================================
+// Exercise/set builder (the "Log a Day" form)
+// ============================================================
+function addExerciseToDraft(){
+  draftExercises.push({ name: '', sets: [{reps:'', weight:'', unit:'lb', effort:''}] });
+  renderBuilder();
+}
+document.getElementById('add-exercise-btn').addEventListener('click', addExerciseToDraft);
+
+function renderBuilder(){
+  const wrap = document.getElementById('exercise-builder');
+  wrap.innerHTML = '';
+  draftExercises.forEach((ex, exIdx)=>{
+    const block = document.createElement('div');
+    block.className = 'exercise-block';
+
+    const head = document.createElement('div');
+    head.className = 'exercise-block-head';
+    head.innerHTML = `
+      <div class="field">
+        <label>Exercise name</label>
+        <input type="text" placeholder="e.g. Bench Press" value="${escapeAttr(ex.name)}" data-ex="${exIdx}" class="ex-name">
+      </div>
+    `;
+    const removeExBtn = document.createElement('button');
+    removeExBtn.type = 'button';
+    removeExBtn.className = 'btn-ghost btn-small';
+    removeExBtn.textContent = 'Remove';
+    removeExBtn.addEventListener('click', ()=>{ draftExercises.splice(exIdx,1); renderBuilder(); });
+    head.appendChild(removeExBtn);
+    block.appendChild(head);
+
+    head.querySelector('.ex-name').addEventListener('input', (e)=>{ ex.name = e.target.value; });
+
+    const table = document.createElement('table');
+    table.className = 'sets-table';
+    table.innerHTML = `
+      <thead><tr>
+        <th style="width:36px;">#</th>
+        <th>Reps</th>
+        <th>Weight</th>
+        <th>Unit</th>
+        <th>Effort (1–10)</th>
+        <th style="width:30px;"></th>
+      </tr></thead>
+    `;
+    const tbody = document.createElement('tbody');
+    ex.sets.forEach((set, setIdx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--muted);">${setIdx+1}</td>
+        <td><input type="number" min="0" step="1" value="${escapeAttr(set.reps)}" class="set-reps"></td>
+        <td><input type="number" min="0" step="0.5" value="${escapeAttr(set.weight)}" class="set-weight"></td>
+        <td>
+          <select class="set-unit">
+            <option value="lb" ${set.unit==='lb'?'selected':''}>lb</option>
+            <option value="kg" ${set.unit==='kg'?'selected':''}>kg</option>
+          </select>
+        </td>
+        <td><input type="number" min="1" max="10" step="1" value="${escapeAttr(set.effort)}" class="set-effort"></td>
+        <td class="set-del">✕</td>
+      `;
+      tr.querySelector('.set-reps').addEventListener('input', e=> set.reps = e.target.value);
+      tr.querySelector('.set-weight').addEventListener('input', e=> set.weight = e.target.value);
+      tr.querySelector('.set-unit').addEventListener('change', e=> set.unit = e.target.value);
+      tr.querySelector('.set-effort').addEventListener('input', e=> set.effort = e.target.value);
+      tr.querySelector('.set-del').addEventListener('click', ()=>{
+        ex.sets.splice(setIdx,1);
+        if(ex.sets.length === 0) ex.sets.push({reps:'', weight:'', unit:'lb', effort:''});
+        renderBuilder();
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    block.appendChild(table);
+
+    const addSetBtn = document.createElement('button');
+    addSetBtn.type = 'button';
+    addSetBtn.className = 'btn-ghost btn-small';
+    addSetBtn.textContent = '+ Add Set';
+    addSetBtn.addEventListener('click', ()=>{
+      const last = ex.sets[ex.sets.length - 1];
+      ex.sets.push({ reps: last ? last.reps : '', weight: last ? last.weight : '', unit: last ? last.unit : 'lb', effort: '' });
+      renderBuilder();
+    });
+    block.appendChild(addSetBtn);
+
+    wrap.appendChild(block);
+  });
+}
+
+function escapeAttr(v){
+  if(v === undefined || v === null) return '';
+  return String(v).replace(/"/g,'&quot;');
+}
+
+document.getElementById('save-day-btn').addEventListener('click', async ()=>{
+  const date = document.getElementById('f-date').value;
+  if(!date){ alert('Pick a date.'); return; }
+  const notes = document.getElementById('f-daynotes').value.trim();
+
+  const cleanExercises = draftExercises
+    .map(ex => ({
+      name: ex.name.trim(),
+      sets: ex.sets
+        .filter(s => s.reps !== '' || s.weight !== '')
+        .map(s => ({
+          reps: s.reps !== '' ? parseFloat(s.reps) : undefined,
+          weight: s.weight !== '' ? parseFloat(s.weight) : undefined,
+          unit: s.unit || 'lb',
+          effort: s.effort !== '' ? parseFloat(s.effort) : undefined,
+        }))
+    }))
+    .filter(ex => ex.name && ex.sets.length > 0);
+
+  if(cleanExercises.length === 0){
+    alert('Add at least one exercise with at least one set (reps or weight filled in).');
+    return;
+  }
+
+  await addDay({ date, notes, exercises: cleanExercises });
+
+  draftExercises = [];
+  renderBuilder();
+  document.getElementById('f-daynotes').value = '';
+});
+
+// --- export / import ---
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const backup = { days, templates };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ironclad-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('import-btn').addEventListener('click', ()=> document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (evt)=>{
+    try{
+      const data = JSON.parse(evt.target.result);
+      // Support both the old format (a bare array of days) and the new { days, templates } format.
+      const importedDays = Array.isArray(data) ? data : (data.days || []);
+      const importedTemplates = Array.isArray(data) ? [] : (data.templates || []);
+      for(const day of importedDays){
+        const { id, rowNumbers, ...rest } = day;
+        await addDay(rest);
+      }
+      for(const t of importedTemplates){
+        const { id, rowNumbers, ...rest } = t;
+        await addTemplate(rest);
+      }
+      alert(`Imported ${importedDays.length} day(s) and ${importedTemplates.length} routine(s).`);
+    }catch(err){
+      alert("Could not read that file — expected an Ironclad backup .json.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+// --- save current builder as a reusable routine ---
+document.getElementById('save-template-btn').addEventListener('click', async ()=>{
+  const cleanExercises = draftExercises
+    .map(ex => ({
+      name: ex.name.trim(),
+      sets: ex.sets
+        .filter(s => s.reps !== '' || s.weight !== '')
+        .map(s => ({
+          reps: s.reps !== '' ? parseFloat(s.reps) : undefined,
+          weight: s.weight !== '' ? parseFloat(s.weight) : undefined,
+          unit: s.unit || 'lb',
+        }))
+    }))
+    .filter(ex => ex.name && ex.sets.length > 0);
+
+  if(cleanExercises.length === 0){
+    alert('Add at least one exercise with at least one set before saving it as a routine.');
+    return;
+  }
+
+  const name = prompt('Name this routine (e.g. "Push Day", "Pull Day", "Leg Day"):');
+  if(!name || !name.trim()) return;
+
+  const existing = templates.find(t => t.name === name.trim());
+  if(existing && !confirm(`A routine named "${name.trim()}" already exists. Overwrite it?`)) return;
+
+  await addTemplate({ name: name.trim(), exercises: cleanExercises });
+});
+
+// ============================================================
+// History rendering
+// ============================================================
+function render(){
+  const wrap = document.getElementById('history');
+  const emptyMsg = document.getElementById('empty-msg');
+  wrap.innerHTML = '';
+
+  if(days.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  [...days].reverse().forEach(day=>{
+    const totalSets = day.exercises.reduce((sum, ex)=> sum + ex.sets.length, 0);
+    const card = document.createElement('div');
+    card.className = 'day-card';
+
+    const head = document.createElement('div');
+    head.className = 'day-card-head';
+    head.innerHTML = `
+      <div>
+        <div class="day-card-date">${day.date}</div>
+        <div class="day-card-stats">${day.exercises.length} exercise${day.exercises.length!==1?'s':''} · ${totalSets} set${totalSets!==1?'s':''}</div>
+      </div>
+      <span class="chevron">▸</span>
+    `;
+    head.addEventListener('click', ()=> card.classList.toggle('open'));
+    card.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'day-card-body';
+
+    day.exercises.forEach(ex=>{
+      const exDiv = document.createElement('div');
+      exDiv.className = 'day-card-exercise';
+      let chips = '';
+      ex.sets.forEach((s, i)=>{
+        const parts = [];
+        if(s.reps !== undefined) parts.push(`${s.reps} reps`);
+        if(s.weight !== undefined) parts.push(`${s.weight}${s.unit || 'lb'}`);
+        let chip = `<span class="set-chip">#${i+1} ${parts.join(' × ')}`;
+        if(s.effort !== undefined) chip += ` <span class="effort">RPE ${s.effort}</span>`;
+        chip += `</span>`;
+        chips += chip;
+      });
+      exDiv.innerHTML = `<div class="day-card-exercise-name">${ex.name}</div><div>${chips}</div>`;
+      body.appendChild(exDiv);
+    });
+
+    if(day.notes){
+      const notesDiv = document.createElement('div');
+      notesDiv.className = 'day-notes';
+      notesDiv.textContent = day.notes;
+      body.appendChild(notesDiv);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn-danger btn-small';
+    delBtn.style.marginTop = '14px';
+    delBtn.textContent = 'Delete this day';
+    delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteDay(day.id); });
+    body.appendChild(delBtn);
+
+    card.appendChild(body);
+    wrap.appendChild(card);
+  });
+}
+
+function renderTemplates(){
+  const wrap = document.getElementById('templates');
+  const emptyMsg = document.getElementById('empty-templates-msg');
+  wrap.innerHTML = '';
+
+  if(templates.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  templates.forEach(t=>{
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    const exList = t.exercises.map(ex => `${ex.name} (${ex.sets.length} set${ex.sets.length!==1?'s':''})`).join('<br>');
+    card.innerHTML = `
+      <h3>${t.name}</h3>
+      <div class="ex-list">${exList}</div>
+      <div class="tpl-actions">
+        <button type="button" class="btn-primary btn-small load-btn">Load into today</button>
+        <button type="button" class="btn-danger btn-small del-btn">Delete</button>
+      </div>
+    `;
+    card.querySelector('.load-btn').addEventListener('click', ()=> loadTemplateIntoDraft(t.id));
+    card.querySelector('.del-btn').addEventListener('click', ()=> deleteTemplate(t.id));
+    wrap.appendChild(card);
+  });
+}
+
+addExerciseToDraft(); // start with one empty exercise ready to fill in
+render();
+renderTemplates();
+</script>
+</body>
+</html>
