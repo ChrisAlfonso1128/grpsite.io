@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Caliper — Measurement Log</title>
-      <link rel="icon" type="image/png" href="caliper.png">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -338,7 +338,7 @@
 </div>
 
 <header>
-  <a class="back-link" href="../../index.html">← Back to the Main Menu</a>
+  <a class="back-link" href="../../index.html">← Portfolio</a>
   <p class="eyebrow">// personal measurement log</p>
   <h1>CALIPER</h1>
   <p>Track the width and circumference of every limb and body part over time. Data lives only in this browser — export a backup whenever you want.</p>
@@ -514,6 +514,16 @@ function signOutOfGoogle(){
 
 let gsiBlocked = false;
 
+// Tries to silently re-authenticate using Google's existing session/consent, with no
+// visible popup. Used on page load and to proactively refresh before the ~1hr token
+// expiry, so users don't have to keep manually clicking "Sign in."
+let pendingSilent = false;
+function attemptSilentSignIn(){
+  if(!tokenClient) return;
+  pendingSilent = true;
+  tokenClient.requestAccessToken({ prompt: 'none' });
+}
+
 if(cloudEnabled){
   if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
     // The Google Identity Services script (accounts.google.com/gsi/client) didn't load —
@@ -527,8 +537,15 @@ if(cloudEnabled){
       client_id: GOOGLE_CLIENT_ID,
       scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
       callback: async (resp)=>{
+        const wasSilent = pendingSilent;
+        pendingSilent = false;
         if(resp.error){
-          alert('Sign-in failed: ' + resp.error);
+          // A failed silent attempt is expected for anyone who hasn't signed in before —
+          // stay quiet about it. Only complain if the user explicitly clicked "Sign in."
+          if(!wasSilent){
+            alert('Sign-in failed: ' + resp.error);
+          }
+          updateSyncBar();
           return;
         }
         accessToken = resp.access_token;
@@ -539,11 +556,17 @@ if(cloudEnabled){
           await refreshFromSheet();
         }catch(err){
           console.error(err);
-          alert('Could not connect to Google Sheets: ' + err.message);
+          if(!wasSilent) alert('Could not connect to Google Sheets: ' + err.message);
         }
         updateSyncBar();
       }
     });
+
+    // Try to silently pick up an existing Google session as soon as the page loads.
+    attemptSilentSignIn();
+    // Proactively refresh the token every 45 minutes so a long session doesn't
+    // suddenly hit the ~1hr expiry mid-use.
+    setInterval(()=>{ if(accessToken) attemptSilentSignIn(); }, 45 * 60 * 1000);
   }
 }
 
@@ -557,9 +580,10 @@ async function gfetch(url, options = {}){
     }
   });
   if(res.status === 401){
-    // Token expired mid-session — ask the user to sign in again.
+    // Token expired mid-session — clear it and try to quietly recover for next time.
     accessToken = null;
     updateSyncBar();
+    attemptSilentSignIn();
     throw new Error('Your session expired — please sign in again.');
   }
   if(!res.ok){
