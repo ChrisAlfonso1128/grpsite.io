@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apps</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,6 +60,23 @@
             -webkit-background-clip:text;
             background-clip:text;
             color:transparent;
+        }
+
+        .intro h1{
+            font-size:1.7rem;
+            font-weight:800;
+            margin-bottom:10px;
+        }
+
+        .intro p{
+            color:var(--sub);
+            line-height:1.6;
+            max-width:56ch;
+            margin-bottom:28px;
+        }
+
+        .intro p a{
+            color:var(--accent-2);
         }
 
         .app{
@@ -180,6 +198,17 @@
 
     <p class="apps-title">Apps</p>
 
+    <div class="intro">
+        <h1>Personal health &amp; fitness tools</h1>
+        <p>
+            A small collection of free, independently-built web apps for tracking your own
+            fitness — body measurements, calorie and macro targets, and more. Each app runs
+            entirely in your browser; if you choose to sign in with Google, your data is saved
+            directly to your own Google Drive, never to a server we control. See our
+            <a href="legal_shit/policy/">Privacy Policy</a> for details.
+        </p>
+    </div>
+
     <a href="apps/macromate/" class="app">
         <div class="app-icon">
             <i class="fa-solid fa-apple-whole"></i>
@@ -206,6 +235,22 @@
             <p>
                 Measure and track your chest, waist, arms,
                 thighs, calves, and other body measurements.
+            </p>
+        </div>
+
+        <i class="fa-solid fa-arrow-right arrow"></i>
+    </a>
+
+    <a href="apps/ironclad/" class="app">
+        <div class="app-icon">
+            <i class="fa-solid fa-dumbbell"></i>
+        </div>
+
+        <div class="app-info">
+            <h2>Ironclad</h2>
+            <p>
+                Log your workouts day by day — exercises, sets, reps,
+                weight, and how hard each set felt.
             </p>
         </div>
 
