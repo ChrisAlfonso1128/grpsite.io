@@ -326,11 +326,8 @@ function render(){
     boardEl.appendChild(bg);
   }
 
-  const gap = 10;
-  const boardWidth = boardEl.clientWidth;
-  // CSS Grid math: SIZE cells with (SIZE-1) gaps between them.
-  const cellSize = (boardWidth - (SIZE - 1) * gap) / SIZE;
-  const stride = cellSize + gap; // distance from one cell's left edge to the next's
+  const boardRect = boardEl.getBoundingClientRect();
+  const bgCells = boardEl.querySelectorAll('.cell-bg'); // created above, in row-major order
 
   for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
     const t = grid[r][c];
@@ -340,10 +337,18 @@ function render(){
     tileEl.className = 'tile' + (t.isNew ? ' tile-spawn' : '') + (t.isMerged ? ' tile-merge' : '');
     tileEl.style.background = colors.bg;
     tileEl.style.color = colors.text;
-    tileEl.style.width = `${cellSize}px`;
-    tileEl.style.height = `${cellSize}px`;
-    tileEl.style.top = `${r * stride}px`;
-    tileEl.style.left = `${c * stride}px`;
+
+    // Measure the real background cell this tile belongs on, and match it exactly —
+    // rather than recalculating position with a formula that can drift from what the
+    // browser's own grid engine actually renders (this is what caused the bug: some
+    // browsers don't render `aspect-ratio` as a perfectly exact square, so formulas
+    // assuming width === height came out wrong specifically on those devices).
+    const cellRect = bgCells[r * SIZE + c].getBoundingClientRect();
+    tileEl.style.width = `${cellRect.width}px`;
+    tileEl.style.height = `${cellRect.height}px`;
+    tileEl.style.left = `${cellRect.left - boardRect.left}px`;
+    tileEl.style.top = `${cellRect.top - boardRect.top}px`;
+
     tileEl.style.fontSize = t.value >= 1024 ? '22px' : t.value >= 128 ? '26px' : '30px';
     tileEl.textContent = t.value;
     boardEl.appendChild(tileEl);
