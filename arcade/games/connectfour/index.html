@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connect Four</title>
+<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d2b5e;
+    --board:#1652c9;
+    --board-dark:#0f3fa0;
+    --hole:#0a1f42;
+    --red:#ff3b3b;
+    --red-dark:#c92626;
+    --yellow:#ffd23f;
+    --yellow-dark:#e0a900;
+    --text:#ffffff;
+    --muted:#a8c0ec;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,0.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Baloo 2', sans-serif;
+    overflow-x:hidden;
+  }
+
+  .back-link{
+    align-self:flex-start;
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--muted); text-decoration:none;
+    font-size:14px; margin-bottom:14px; font-weight:600;
+  }
+  .back-link:hover{ color:var(--yellow); }
+
+  h1{
+    font-size:36px;
+    font-weight:800;
+    margin:0 0 4px;
+    text-shadow:3px 3px 0 rgba(0,0,0,0.2);
+  }
+  .subtitle{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:18px;
+    font-weight:600;
+  }
+
+  .mode-select, .difficulty-select{
+    display:flex;
+    gap:8px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .difficulty-select{ display:none; }
+  .difficulty-select.show{ display:flex; }
+  .pill{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    background:var(--board-dark);
+    color:var(--muted);
+    border:2px solid transparent;
+    border-radius:20px;
+    padding:8px 18px;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .pill:hover{ color:var(--text); }
+  .pill.active{ border-color:var(--yellow); color:var(--text); }
+
+  .status{
+    font-size:18px;
+    font-weight:700;
+    min-height:28px;
+    margin-bottom:14px;
+    text-align:center;
+  }
+  .turn-chip{
+    display:inline-block;
+    width:16px; height:16px;
+    border-radius:50%;
+    vertical-align:middle;
+    margin-right:6px;
+  }
+  .turn-chip.red{ background:var(--red); }
+  .turn-chip.yellow{ background:var(--yellow); }
+
+  .scoreboard{
+    display:flex;
+    gap:24px;
+    margin-bottom:16px;
+    font-size:14px;
+    font-weight:600;
+  }
+  .scoreboard .red-score{ color:var(--red); }
+  .scoreboard .yellow-score{ color:var(--yellow); }
+
+  .board-wrap{
+    background:var(--board);
+    border-radius:16px;
+    padding:12px;
+    box-shadow:0 12px 0 var(--board-dark), 0 20px 30px rgba(0,0,0,0.3);
+    max-width:94vw;
+    overflow-x:auto;
+  }
+  .board{
+    display:grid;
+    grid-template-columns:repeat(7, 46px);
+    grid-template-rows:repeat(6, 46px);
+    gap:6px;
+  }
+  .cell{
+    width:46px; height:46px;
+    border-radius:50%;
+    background:var(--hole);
+    box-shadow:inset 0 3px 6px rgba(0,0,0,0.5);
+    cursor:pointer;
+    position:relative;
+  }
+  .cell.red{ background:radial-gradient(circle at 35% 30%, #ff7b7b, var(--red) 60%, var(--red-dark)); }
+  .cell.yellow{ background:radial-gradient(circle at 35% 30%, #ffe98a, var(--yellow) 60%, var(--yellow-dark)); }
+  .cell.win-piece{ animation:pop 0.5s ease-in-out infinite alternate; }
+  @keyframes pop{ from{ transform:scale(1); } to{ transform:scale(1.12); } }
+
+  .col-hover{
+    display:none;
+  }
+  @media (hover:hover){
+    .board:not(.locked) .cell:not(.red):not(.yellow):hover{
+      box-shadow:inset 0 3px 6px rgba(0,0,0,0.5), 0 0 0 3px rgba(255,255,255,0.25);
+    }
+  }
+
+  button{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    background:var(--yellow);
+    color:#3a2a00;
+    border:none;
+    border-radius:10px;
+    padding:10px 22px;
+    cursor:pointer;
+    margin-top:16px;
+    transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:scale(.96); }
+</style>
+</head>
+<body>
+
+<a class="back-link" href="../../index.html">← Arcade</a>
+<h1>Connect Four</h1>
+<p class="subtitle">drop 'em in a row</p>
+
+<div class="mode-select">
+  <button type="button" class="pill active" data-mode="pvp">1 vs 1</button>
+  <button type="button" class="pill" data-mode="bot">vs Bot</button>
+</div>
+
+<div class="difficulty-select" id="difficulty-select">
+  <button type="button" class="pill active" data-difficulty="easy">Easy</button>
+  <button type="button" class="pill" data-difficulty="medium">Medium</button>
+  <button type="button" class="pill" data-difficulty="hard">Hard</button>
+</div>
+
+<div class="scoreboard">
+  <div class="red-score">🔴 Red: <span id="score-red">0</span></div>
+  <div class="yellow-score">🟡 Yellow: <span id="score-yellow">0</span></div>
+</div>
+
+<div class="status" id="status">Red's turn</div>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<button type="button" id="reset-btn">New Round</button>
+
+<script>
+const ROWS = 6, COLS = 7;
+const RED = 'red', YELLOW = 'yellow';
+
+let board, current, gameOver, mode, difficulty, botThinking, scores;
+
+function createBoard(){ return Array.from({length: ROWS}, ()=> Array(COLS).fill(null)); }
+
+function dropPiece(b, col, player){
+  for(let r = ROWS-1; r >= 0; r--){
+    if(!b[r][col]){ b[r][col] = player; return r; }
+  }
+  return -1;
+}
+
+function validCols(b){
+  const cols = [];
+  for(let c = 0; c < COLS; c++) if(!b[0][c]) cols.push(c);
+  return cols;
+}
+
+function checkWinLine(b, player){
+  for(let r = 0; r < ROWS; r++) for(let c = 0; c < COLS; c++){
+    if(b[r][c] !== player) continue;
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for(const [dr,dc] of dirs){
+      const line = [[r,c]];
+      for(let k = 1; k < 4; k++){
+        const nr = r+dr*k, nc = c+dc*k;
+        if(nr<0||nr>=ROWS||nc<0||nc>=COLS||b[nr][nc]!==player) break;
+        line.push([nr,nc]);
+      }
+      if(line.length >= 4) return line;
+    }
+  }
+  return null;
+}
+
+function isBoardFull(b){ return validCols(b).length === 0; }
+
+// ============================================================
+// Bot (minimax + alpha-beta, depth varies by difficulty)
+// ============================================================
+function evaluateWindow(window, player, opp){
+  let score = 0;
+  const pc = window.filter(x=>x===player).length;
+  const oc = window.filter(x=>x===opp).length;
+  const ec = window.filter(x=>x===null).length;
+  if(pc===4) score += 100;
+  else if(pc===3 && ec===1) score += 5;
+  else if(pc===2 && ec===2) score += 2;
+  if(oc===3 && ec===1) score -= 4;
+  return score;
+}
+
+function evaluateBoard(b, player){
+  const opp = player===RED ? YELLOW : RED;
+  let score = 0;
+  const centerCol = b.map(row=>row[Math.floor(COLS/2)]);
+  score += centerCol.filter(x=>x===player).length * 3;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS-3;c++)
+    score += evaluateWindow([b[r][c],b[r][c+1],b[r][c+2],b[r][c+3]], player, opp);
+  for(let c=0;c<COLS;c++) for(let r=0;r<ROWS-3;r++)
+    score += evaluateWindow([b[r][c],b[r+1][c],b[r+2][c],b[r+3][c]], player, opp);
+  for(let r=0;r<ROWS-3;r++) for(let c=0;c<COLS-3;c++)
+    score += evaluateWindow([b[r][c],b[r+1][c+1],b[r+2][c+2],b[r+3][c+3]], player, opp);
+  for(let r=0;r<ROWS-3;r++) for(let c=3;c<COLS;c++)
+    score += evaluateWindow([b[r][c],b[r+1][c-1],b[r+2][c-2],b[r+3][c-3]], player, opp);
+  return score;
+}
+
+function isTerminal(b){
+  return !!checkWinLine(b, RED) || !!checkWinLine(b, YELLOW) || isBoardFull(b);
+}
+
+function minimax(b, depth, alpha, beta, maximizing, player, opp){
+  const terminal = isTerminal(b);
+  if(depth === 0 || terminal){
+    if(terminal){
+      if(checkWinLine(b, player)) return { score: 1000000 };
+      if(checkWinLine(b, opp)) return { score: -1000000 };
+      return { score: 0 };
+    }
+    return { score: evaluateBoard(b, player) };
+  }
+  const cols = validCols(b);
+  if(maximizing){
+    let best = { score: -Infinity, col: cols[0] };
+    for(const c of cols){
+      const b2 = b.map(row=>row.slice());
+      dropPiece(b2, c, player);
+      const result = minimax(b2, depth-1, alpha, beta, false, player, opp);
+      if(result.score > best.score) best = { score: result.score, col: c };
+      alpha = Math.max(alpha, result.score);
+      if(alpha >= beta) break;
+    }
+    return best;
+  } else {
+    let best = { score: Infinity, col: cols[0] };
+    for(const c of cols){
+      const b2 = b.map(row=>row.slice());
+      dropPiece(b2, c, opp);
+      const result = minimax(b2, depth-1, alpha, beta, true, player, opp);
+      if(result.score < best.score) best = { score: result.score, col: c };
+      beta = Math.min(beta, result.score);
+      if(alpha >= beta) break;
+    }
+    return best;
+  }
+}
+
+function botChooseCol(){
+  const cols = validCols(board);
+  if(difficulty === 'easy'){
+    return cols[Math.floor(Math.random()*cols.length)];
+  }
+  const depth = difficulty === 'medium' ? 3 : 6;
+  const result = minimax(board, depth, -Infinity, Infinity, true, YELLOW, RED);
+  return result.col;
+}
+
+// ============================================================
+// UI
+// ============================================================
+function startNewRound(){
+  board = createBoard();
+  current = RED;
+  gameOver = false;
+  botThinking = false;
+  buildBoardDom();
+  updateStatus();
+}
+
+function buildBoardDom(){
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  boardEl.classList.remove('locked');
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.addEventListener('click', ()=> handleColumnClick(c));
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function renderBoard(){
+  const boardEl = document.getElementById('board');
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const val = board[r][c];
+    const el = boardEl.children[r*COLS + c];
+    el.className = 'cell' + (val ? ' ' + val : '');
+  }
+}
+
+function updateStatus(){
+  const chip = `<span class="turn-chip ${current}"></span>`;
+  if(mode === 'bot'){
+    document.getElementById('status').innerHTML = current === RED ? `${chip}Your turn` : `${chip}Bot thinking…`;
+  } else {
+    document.getElementById('status').innerHTML = `${chip}${current === RED ? 'Red' : 'Yellow'}'s turn`;
+  }
+}
+
+function handleColumnClick(col){
+  if(gameOver || botThinking) return;
+  if(mode === 'bot' && current !== RED) return;
+  if(board[0][col]) return; // column full
+
+  const row = dropPiece(board, col, current);
+  if(row === -1) return;
+  renderBoard();
+
+  const winLine = checkWinLine(board, current);
+  if(winLine){
+    finishGame(current, winLine);
+    return;
+  }
+  if(isBoardFull(board)){
+    finishGame(null, null);
+    return;
+  }
+
+  current = current === RED ? YELLOW : RED;
+  updateStatus();
+
+  if(mode === 'bot' && current === YELLOW && !gameOver){
+    botThinking = true;
+    document.getElementById('board').classList.add('locked');
+    setTimeout(()=>{
+      const col2 = botChooseCol();
+      const row2 = dropPiece(board, col2, YELLOW);
+      renderBoard();
+      botThinking = false;
+      document.getElementById('board').classList.remove('locked');
+
+      const winLine2 = checkWinLine(board, YELLOW);
+      if(winLine2){
+        finishGame(YELLOW, winLine2);
+        return;
+      }
+      if(isBoardFull(board)){
+        finishGame(null, null);
+        return;
+      }
+      current = RED;
+      updateStatus();
+    }, 500);
+  }
+}
+
+function finishGame(winner, winLine){
+  gameOver = true;
+  if(winner){
+    scores[winner]++;
+    document.getElementById('score-red').textContent = scores.red;
+    document.getElementById('score-yellow').textContent = scores.yellow;
+    const label = mode === 'bot'
+      ? (winner === RED ? 'You win! 🎉' : 'Bot wins!')
+      : `${winner === RED ? 'Red' : 'Yellow'} wins! 🎉`;
+    document.getElementById('status').textContent = label;
+    if(winLine){
+      const boardEl = document.getElementById('board');
+      winLine.forEach(([r,c])=> boardEl.children[r*COLS+c].classList.add('win-piece'));
+    }
+  } else {
+    document.getElementById('status').textContent = "It's a draw!";
+  }
+  setTimeout(()=>{ if(gameOver) startNewRound(); }, 2200);
+}
+
+document.querySelectorAll('.mode-select .pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-select .pill').forEach(b=> b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    document.getElementById('difficulty-select').classList.toggle('show', mode === 'bot');
+    startNewRound();
+  });
+});
+document.querySelectorAll('.difficulty-select .pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.difficulty-select .pill').forEach(b=> b.classList.remove('active'));
+    btn.classList.add('active');
+    difficulty = btn.dataset.difficulty;
+    startNewRound();
+  });
+});
+document.getElementById('reset-btn').addEventListener('click', startNewRound);
+
+mode = 'pvp';
+difficulty = 'easy';
+scores = { red: 0, yellow: 0 };
+startNewRound();
+</script>
+</body>
+</html>
