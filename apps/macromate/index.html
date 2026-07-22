@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MacroMate — Fitness Macro Calculator</title>
 <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('macromate_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,17 +29,34 @@
     --accent:#ff2f9e;
     --accent-2:#ff8ad1;
     --green:#6fcf97;
+    --glow-1:rgba(255,47,158,0.14);
+    --glow-2:rgba(255,138,209,0.08);
+  }
+  [data-theme="light"]{
+    --bg:#fdf7fa;
+    --card:#ffffff;
+    --card-2:#f7ecf3;
+    --border:#e8d2e0;
+    --text:#241019;
+    --sub:#6b4f5e;
+    --muted:#9b8290;
+    --accent:#e0227f;
+    --accent-2:#c93d8f;
+    --green:#2f9e5f;
+    --glow-1:rgba(224,34,127,0.08);
+    --glow-2:rgba(201,61,143,0.05);
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
     background:
-      radial-gradient(circle at 15% 0%, rgba(255,47,158,0.14), transparent 55%),
-      radial-gradient(circle at 85% 100%, rgba(255,138,209,0.08), transparent 50%),
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
       var(--bg);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
   }
   ::selection{background:var(--accent);color:#fff;}
 
@@ -39,14 +65,34 @@
     margin:0 auto;
     padding:40px 24px 24px;
   }
+  .header-top-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
   .back-link{
     display:inline-flex; align-items:center; gap:6px;
     color:var(--muted); text-decoration:none;
     font-family:'JetBrains Mono',monospace; font-size:12px;
-    letter-spacing:.04em; margin-bottom:20px;
+    letter-spacing:.04em;
     transition:color .15s ease;
   }
   .back-link:hover{color:var(--accent-2);}
+  .theme-toggle-btn{
+    width:auto;
+    margin:0;
+    padding:8px 10px;
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
   .eyebrow{
     font-family:'JetBrains Mono',monospace;
     font-size:12px; letter-spacing:.14em; text-transform:uppercase;
@@ -58,7 +104,7 @@
     letter-spacing:.02em;
     margin:0 0 8px;
     line-height:.95;
-    background:linear-gradient(90deg, #ffffff, var(--accent-2));
+    background:linear-gradient(90deg, var(--text), var(--accent-2));
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;
@@ -237,7 +283,10 @@
 <body>
 
 <header>
-  <a class="back-link" href="../../index.html">← Apps</a>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Apps</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">🌙</button>
+  </div>
   <p class="eyebrow">// calorie &amp; macro calculator</p>
   <h1>MACROMATE</h1>
   <p>Calculate your daily calorie target, macro split, and a realistic timeline to hit your goal weight.</p>
@@ -368,6 +417,38 @@
 </footer>
 
 <script>
+// ============================================================
+// Theme (light/dark)
+// ============================================================
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2), 16);
+  const g = parseInt(h.substring(2,4), 16);
+  const b = parseInt(h.substring(4,6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('macromate_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('macromate_theme', 'light');
+  }
+  updateThemeButtonIcon();
+  if(lastResults) renderChart(lastResults); // chart colors read CSS vars at draw time
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+updateThemeButtonIcon();
+
 let chart = null;
 
 // --- unit toggles (height: cm/in, weight: lbs/kg — shared between current & goal) ---
@@ -467,7 +548,10 @@ function calculate(){
   });
 }
 
+let lastResults = null;
+
 function renderResults(r){
+  lastResults = r;
   document.getElementById('results-panel').classList.add('show');
 
   const dirText = r.direction === 'maintain'
@@ -529,9 +613,9 @@ function renderChart(r){
       datasets: [{
         label: `Projected weight (${r.weightUnit})`,
         data,
-        borderColor: '#ff2f9e',
-        backgroundColor: 'rgba(255,47,158,0.15)',
-        pointBackgroundColor: '#ff8ad1',
+        borderColor: cssVar('--accent'),
+        backgroundColor: hexToRgba(cssVar('--accent'), 0.15),
+        pointBackgroundColor: cssVar('--accent-2'),
         pointRadius: 3,
         tension: 0.2,
         fill: true,
@@ -541,8 +625,8 @@ function renderChart(r){
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } },
-        y: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } }
+        x: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--muted'), font: { size: 11 } } },
+        y: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--muted'), font: { size: 11 } } }
       },
       plugins: { legend: { display: false } }
     }
