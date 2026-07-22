@@ -71,6 +71,7 @@
     padding:10px;
     width:min(420px, 90vw);
     aspect-ratio:1;
+    touch-action:none;
   }
   .board{
     position:relative;
@@ -355,23 +356,32 @@ document.addEventListener('keydown', (e)=>{
   move(dir);
 });
 
-// touch swipe
-let touchStartX = 0, touchStartY = 0;
+// touch swipe — fires as soon as the swipe crosses the threshold rather than
+// waiting for the finger to lift, so it feels immediate. touchmove also stops
+// the page itself from scrolling while you're swiping on the board.
+let touchStartX = 0, touchStartY = 0, touchFired = false;
 const boardWrapEl = document.querySelector('.board-wrap');
+const SWIPE_THRESHOLD = 24;
+
 boardWrapEl.addEventListener('touchstart', (e)=>{
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
+  touchFired = false;
 }, {passive:true});
-boardWrapEl.addEventListener('touchend', (e)=>{
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  const dy = e.changedTouches[0].clientY - touchStartY;
-  if(Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; // ignore tiny taps
+
+boardWrapEl.addEventListener('touchmove', (e)=>{
+  e.preventDefault();
+  if(touchFired) return;
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  if(Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
   if(Math.abs(dx) > Math.abs(dy)){
     move(dx > 0 ? 'right' : 'left');
   } else {
     move(dy > 0 ? 'down' : 'up');
   }
-});
+  touchFired = true;
+}, {passive:false});
 
 document.getElementById('restart-btn').addEventListener('click', startGame);
 
