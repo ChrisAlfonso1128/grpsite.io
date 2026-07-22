@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Caliper — Measurement Log</title>
 <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('caliper_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -22,6 +31,18 @@
     --green:#6FCF97;
     --red:#E0725C;
   }
+  [data-theme="light"]{
+    --bg:#fdf9f2;
+    --panel:#ffffff;
+    --panel-2:#f6efe0;
+    --line:#e6dac0;
+    --text:#211b12;
+    --muted:#8a7a5f;
+    --amber:#a8690f;
+    --amber-dim:#d9ab5c;
+    --green:#2f9e5f;
+    --red:#c94f36;
+  }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -29,6 +50,7 @@
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
   }
   ::selection{background:var(--amber);color:#14161A;}
 
@@ -308,6 +330,12 @@
     button{transition:none;}
   }
 
+  .header-top-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
   .back-link{
     display:inline-flex;
     align-items:center;
@@ -317,10 +345,23 @@
     font-family:'JetBrains Mono',monospace;
     font-size:12px;
     letter-spacing:.04em;
-    margin-bottom:20px;
     transition:color .15s ease;
   }
   .back-link:hover{color:var(--amber);}
+  .theme-toggle-btn{
+    width:auto;
+    margin:0;
+    padding:8px 10px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--amber); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
 </style>
 </head>
 <body>
@@ -338,7 +379,10 @@
 </div>
 
 <header>
-  <a class="back-link" href="../../index.html">← Back to the Main Menu</a>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Portfolio</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">🌙</button>
+  </div>
   <p class="eyebrow">// personal measurement log</p>
   <h1>CALIPER</h1>
   <p>Track the width and circumference of every limb and body part over time. Data lives only in this browser — export a backup whenever you want.</p>
@@ -426,6 +470,38 @@
 </footer>
 
 <script>
+// ============================================================
+// Theme (light/dark)
+// ============================================================
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2), 16);
+  const g = parseInt(h.substring(2,4), 16);
+  const b = parseInt(h.substring(4,6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('caliper_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('caliper_theme', 'light');
+  }
+  updateThemeButtonIcon();
+  renderChart(); // chart colors are read from CSS vars at draw time — refresh them
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+updateThemeButtonIcon();
+
 // ============================================================
 // GOOGLE SIGN-IN SETUP — replace with YOUR OAuth Client ID.
 // Create one at https://console.cloud.google.com
@@ -914,9 +990,9 @@ function renderChart(){
       datasets: [{
         label: activePart,
         data: points.map(p => p.y),
-        borderColor: '#E8A33D',
-        backgroundColor: 'rgba(232,163,61,0.15)',
-        pointBackgroundColor: '#E8A33D',
+        borderColor: cssVar('--amber'),
+        backgroundColor: hexToRgba(cssVar('--amber'), 0.15),
+        pointBackgroundColor: cssVar('--amber'),
         pointRadius: 4,
         tension: 0.25,
         fill: true,
@@ -928,12 +1004,12 @@ function renderChart(){
       scales: {
         x: {
           type: 'category',
-          grid: { color: '#2A2E36' },
-          ticks: { color: '#8B8F98', font: { family: 'JetBrains Mono', size: 11 } }
+          grid: { color: cssVar('--line') },
+          ticks: { color: cssVar('--muted'), font: { family: 'JetBrains Mono', size: 11 } }
         },
         y: {
-          grid: { color: '#2A2E36' },
-          ticks: { color: '#8B8F98', font: { family: 'JetBrains Mono', size: 11 } }
+          grid: { color: cssVar('--line') },
+          ticks: { color: cssVar('--muted'), font: { family: 'JetBrains Mono', size: 11 } }
         }
       },
       plugins: {
