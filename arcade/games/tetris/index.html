@@ -94,6 +94,7 @@
     border-radius:6px;
     box-shadow:0 0 30px rgba(161,47,255,0.35), inset 0 0 30px rgba(47,230,255,0.05);
     background:#0a0420;
+    touch-action:none;
   }
   canvas#board{ display:block; }
 
@@ -166,17 +167,6 @@
   button:hover{ filter:brightness(1.15); }
   button:active{ transform:scale(.96); }
 
-  .touch-controls{
-    display:none;
-    margin-top:18px;
-    gap:8px;
-    grid-template-columns:repeat(4, 56px);
-    z-index:1;
-  }
-  .touch-controls button{ padding:0; height:48px; font-size:18px; }
-  @media (pointer:coarse){
-    .touch-controls{ display:grid; }
-  }
 </style>
 </head>
 <body>
@@ -213,20 +203,13 @@
       <div class="value" id="level">1</div>
     </div>
     <div class="panel-box controls-hint">
-      <b>◀ ▶</b> move<br>
-      <b>▲</b> rotate<br>
+      <b>◀ ▶</b> move / swipe<br>
+      <b>▲</b> rotate / tap board<br>
       <b>▼</b> soft drop<br>
-      <b>Space</b> hard drop<br>
+      <b>Space</b> hard drop / swipe down<br>
       <b>P</b> pause
     </div>
   </div>
-</div>
-
-<div class="touch-controls">
-  <button id="btn-left">◀</button>
-  <button id="btn-rotate">↻</button>
-  <button id="btn-down">▼</button>
-  <button id="btn-right">▶</button>
 </div>
 
 <script>
@@ -503,10 +486,47 @@ document.addEventListener('keydown', (e)=>{
   draw();
 });
 
-document.getElementById('btn-left').addEventListener('click', ()=>{ move(-1,0); draw(); });
-document.getElementById('btn-right').addEventListener('click', ()=>{ move(1,0); draw(); });
-document.getElementById('btn-down').addEventListener('click', ()=>{ softDrop(); draw(); });
-document.getElementById('btn-rotate').addEventListener('click', ()=>{ rotate(); draw(); });
+// --- touch controls: horizontal drag slides the piece with the finger in real
+// time, a tap rotates, and a decisive downward swipe hard-drops ---
+(function(){
+  const target = document.querySelector('.board-wrap');
+  let startX = 0, startY = 0, startTime = 0, colsMoved = 0;
+
+  target.addEventListener('touchstart', (e)=>{
+    if(gameOver) return;
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY; startTime = Date.now();
+    colsMoved = 0;
+  }, {passive:true});
+
+  target.addEventListener('touchmove', (e)=>{
+    e.preventDefault(); // stop the page from scrolling while dragging on the board
+    if(gameOver) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const targetCols = Math.round(dx / CELL);
+    while(colsMoved < targetCols){ if(move(1,0)) colsMoved++; else break; }
+    while(colsMoved > targetCols){ if(move(-1,0)) colsMoved--; else break; }
+    draw();
+  }, {passive:false});
+
+  target.addEventListener('touchend', (e)=>{
+    if(gameOver) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    const dist = Math.hypot(dx, dy);
+    const duration = Date.now() - startTime;
+
+    if(dist < 12 && duration < 400){
+      rotate();
+      draw();
+    } else if(dy > 40 && dy > Math.abs(dx)){
+      hardDrop();
+      draw();
+    }
+  });
+})();
 document.getElementById('restart-btn').addEventListener('click', resetGame);
 
 resetGame();
