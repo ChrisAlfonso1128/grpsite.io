@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ironclad — Workout Tracker</title>
 <link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<script>
+  // Applied before first paint so returning light-theme users don't see a flash of dark.
+  (function(){
+    try{
+      if(localStorage.getItem('ironclad_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client"></script>
@@ -23,17 +33,36 @@
     --accent-2:#ff8ad1;
     --green:#6fcf97;
     --red:#e0725c;
+    --glow-1:rgba(255,47,158,0.14);
+    --glow-2:rgba(255,138,209,0.08);
+  }
+  [data-theme="light"]{
+    --bg:#fdf7fa;
+    --card:#ffffff;
+    --card-2:#f7ecf3;
+    --border:#e8d2e0;
+    --hover:#fbeef6;
+    --text:#241019;
+    --sub:#6b4f5e;
+    --muted:#9b8290;
+    --accent:#e0227f;
+    --accent-2:#c93d8f;
+    --green:#2f9e5f;
+    --red:#c94f36;
+    --glow-1:rgba(224,34,127,0.08);
+    --glow-2:rgba(201,61,143,0.05);
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
     background:
-      radial-gradient(circle at 15% 0%, rgba(255,47,158,0.14), transparent 55%),
-      radial-gradient(circle at 85% 100%, rgba(255,138,209,0.08), transparent 50%),
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
       var(--bg);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
   }
   ::selection{background:var(--accent);color:#fff;}
 
@@ -90,14 +119,34 @@
     margin:0 auto;
     padding:40px 24px 24px;
   }
+  .header-top-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
   .back-link{
     display:inline-flex; align-items:center; gap:6px;
     color:var(--muted); text-decoration:none;
     font-family:'JetBrains Mono',monospace; font-size:12px;
-    letter-spacing:.04em; margin-bottom:20px;
+    letter-spacing:.04em;
     transition:color .15s ease;
   }
   .back-link:hover{color:var(--accent-2);}
+  .theme-toggle-btn{
+    width:auto;
+    margin:0;
+    padding:8px 10px;
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
   .eyebrow{
     font-family:'JetBrains Mono',monospace;
     font-size:12px; letter-spacing:.14em; text-transform:uppercase;
@@ -109,7 +158,7 @@
     letter-spacing:.02em;
     margin:0 0 8px;
     line-height:.95;
-    background:linear-gradient(90deg, #ffffff, var(--accent-2));
+    background:linear-gradient(90deg, var(--text), var(--accent-2));
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;
@@ -151,6 +200,20 @@
   }
   .tab-panel{ display:none; }
   .tab-panel.active{ display:grid; gap:24px; }
+
+  .edit-banner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:rgba(255,47,158,0.1);
+    border:1px solid var(--accent);
+    border-radius:8px;
+    padding:10px 14px;
+    margin-bottom:16px;
+    font-size:13px;
+    color:var(--text);
+  }
 
   .panel{
     background:var(--card);
@@ -203,6 +266,33 @@
     margin-bottom:12px;
   }
   .exercise-block-head .field{ flex:1; }
+  .unit-toggle{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:6px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .unit-btn{
+    background:var(--card-2);
+    color:var(--muted);
+    border:none;
+    border-radius:0;
+    width:auto;
+    margin:0;
+    padding:0 14px;
+    height:38px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .unit-btn:hover{ color:var(--text); }
+  .unit-btn.active{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#1a0512;
+  }
   .sets-table{
     width:100%;
     border-collapse:collapse;
@@ -440,7 +530,10 @@
 </div>
 
 <header>
-  <a class="back-link" href="../../index.html">← Back to The Main Menu</a>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Apps</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">🌙</button>
+  </div>
   <p class="eyebrow">// day-by-day workout log</p>
   <h1>IRONCLAD</h1>
   <p>Log your workouts one day at a time — exercises, sets, reps, weight, and how hard each set felt.</p>
@@ -461,7 +554,12 @@
     <!-- Log a day -->
     <section class="panel">
       <h2>Log a Day</h2>
-      <p class="sub">Add exercises and sets below, then save the whole session at once.</p>
+      <p class="sub">Add exercises and sets below, then save the whole session at once. Tip: hit Enter in a set field to jump to the next one (or add a new set), and Ctrl/⌘+Enter to save.</p>
+
+      <div class="edit-banner" id="edit-banner" style="display:none;">
+        <span id="edit-banner-text"></span>
+        <button type="button" class="btn-ghost btn-small" id="cancel-edit-btn">Cancel</button>
+      </div>
 
       <div class="day-meta">
         <div class="field">
@@ -474,7 +572,10 @@
         </div>
       </div>
 
+      <button type="button" class="btn-ghost" id="repeat-last-btn" style="margin-bottom:16px;">↻ Repeat Last Session</button>
+
       <div id="exercise-builder"></div>
+      <datalist id="exercise-suggestions"></datalist>
 
       <button type="button" class="btn-ghost" id="add-exercise-btn">+ Add Exercise</button>
 
@@ -560,6 +661,38 @@
 </footer>
 
 <script>
+// ============================================================
+// Theme (light/dark)
+// ============================================================
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2), 16);
+  const g = parseInt(h.substring(2,4), 16);
+  const b = parseInt(h.substring(4,6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('ironclad_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('ironclad_theme', 'light');
+  }
+  updateThemeButtonIcon();
+  renderProgressChart(); // chart colors are read from CSS vars at draw time — refresh them
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+updateThemeButtonIcon();
+
 // ============================================================
 // GOOGLE SIGN-IN — reuses the same OAuth client as Caliper.
 // ============================================================
@@ -965,6 +1098,34 @@ async function deleteDay(id){
   }
 }
 
+// Used internally by the edit flow — deletes by date (works whether the id is a
+// random local id or a cloud row-derived one) and skips the confirm + refresh,
+// since the caller immediately re-adds the (possibly edited) day right after.
+async function deleteDayByDate(dateStr){
+  if(accessToken && spreadsheetId){
+    const day = days.find(d => d.date === dateStr);
+    if(!day || !day.rowNumbers || day.rowNumbers.length === 0) return;
+    try{
+      const requests = [...day.rowNumbers]
+        .sort((a,b)=> b - a)
+        .map(rowNumber => ({
+          deleteDimension: {
+            range: { sheetId: sheetGid, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber }
+          }
+        }));
+      await gfetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({ requests })
+      });
+    }catch(err){
+      alert('Could not update Google Sheets: ' + err.message);
+    }
+  } else {
+    days = days.filter(d => d.date !== dateStr);
+    saveLocalDays();
+  }
+}
+
 // ============================================================
 // Templates (saved routines) — same pattern as days, keyed by name instead of date
 // ============================================================
@@ -1093,7 +1254,95 @@ function loadTemplateIntoDraft(id){
     }))
   }));
   renderBuilder();
-  document.querySelector('.panel').scrollIntoView({behavior:'smooth'});
+  switchTab('log');
+}
+
+// ============================================================
+// Edit / Duplicate / Quick-add — all three load an existing day's
+// exercises into the builder; they differ only in which date gets
+// used and whether we're replacing that day (edit) or creating a
+// fresh new entry (duplicate / quick-add).
+// ============================================================
+let editingDate = null;
+
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function loadDayExercisesIntoDraft(day){
+  draftExercises = day.exercises.map(ex => ({
+    name: ex.name,
+    sets: ex.sets.map(s => ({
+      reps: s.reps !== undefined ? String(s.reps) : '',
+      weight: s.weight !== undefined ? String(s.weight) : '',
+      unit: s.unit || 'lb',
+      effort: s.effort !== undefined ? String(s.effort) : ''
+    }))
+  }));
+}
+
+function confirmDraftOverwrite(promptLabel){
+  if(draftExercises.some(ex => ex.name || ex.sets.some(s => s.reps || s.weight))){
+    return confirm(`${promptLabel} This will replace what you've currently got in the builder.`);
+  }
+  return true;
+}
+
+function editDay(dateStr){
+  const day = days.find(d => d.date === dateStr);
+  if(!day) return;
+  if(!confirmDraftOverwrite(`Edit ${dateStr}?`)) return;
+
+  loadDayExercisesIntoDraft(day);
+  document.getElementById('f-date').value = day.date;
+  document.getElementById('f-daynotes').value = day.notes || '';
+  editingDate = day.date;
+  updateEditBanner();
+  renderBuilder();
+  switchTab('log');
+}
+
+function duplicateDay(dateStr){
+  const day = days.find(d => d.date === dateStr);
+  if(!day) return;
+  if(!confirmDraftOverwrite(`Log ${dateStr}'s workout again today?`)) return;
+
+  loadDayExercisesIntoDraft(day);
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-daynotes').value = day.notes || '';
+  editingDate = null; // this creates a new entry, not an edit
+  updateEditBanner();
+  renderBuilder();
+  switchTab('log');
+}
+
+function repeatLastSession(){
+  if(days.length === 0){
+    alert('No previous sessions to repeat yet.');
+    return;
+  }
+  const latest = [...days].sort((a,b)=> b.date.localeCompare(a.date))[0];
+  duplicateDay(latest.date);
+}
+
+function cancelEdit(){
+  editingDate = null;
+  draftExercises = [];
+  addExerciseToDraft();
+  document.getElementById('f-daynotes').value = '';
+  document.getElementById('f-date').valueAsDate = new Date();
+  updateEditBanner();
+}
+
+function updateEditBanner(){
+  const banner = document.getElementById('edit-banner');
+  if(editingDate){
+    banner.style.display = 'flex';
+    document.getElementById('edit-banner-text').textContent = `Editing ${editingDate} — saving will update this day instead of adding a new one.`;
+  } else {
+    banner.style.display = 'none';
+  }
 }
 
 // ============================================================
@@ -1112,12 +1361,18 @@ function renderBuilder(){
     const block = document.createElement('div');
     block.className = 'exercise-block';
 
+    const exUnit = (ex.sets[0] && ex.sets[0].unit) || 'lb';
+
     const head = document.createElement('div');
     head.className = 'exercise-block-head';
     head.innerHTML = `
       <div class="field">
         <label>Exercise name</label>
-        <input type="text" placeholder="e.g. Bench Press" value="${escapeAttr(ex.name)}" data-ex="${exIdx}" class="ex-name">
+        <input type="text" placeholder="e.g. Bench Press" value="${escapeAttr(ex.name)}" data-ex="${exIdx}" class="ex-name" list="exercise-suggestions" autocomplete="off">
+      </div>
+      <div class="unit-toggle">
+        <button type="button" class="unit-btn ${exUnit==='lb'?'active':''}" data-unit="lb">lb</button>
+        <button type="button" class="unit-btn ${exUnit==='kg'?'active':''}" data-unit="kg">kg</button>
       </div>
     `;
     const removeExBtn = document.createElement('button');
@@ -1129,6 +1384,13 @@ function renderBuilder(){
     block.appendChild(head);
 
     head.querySelector('.ex-name').addEventListener('input', (e)=>{ ex.name = e.target.value; });
+    head.querySelectorAll('.unit-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const newUnit = btn.dataset.unit;
+        ex.sets.forEach(s => s.unit = newUnit); // applies to every set in this exercise at once
+        renderBuilder();
+      });
+    });
 
     const table = document.createElement('table');
     table.className = 'sets-table';
@@ -1136,8 +1398,7 @@ function renderBuilder(){
       <thead><tr>
         <th style="width:36px;">#</th>
         <th>Reps</th>
-        <th>Weight</th>
-        <th>Unit</th>
+        <th>Weight (${exUnit})</th>
         <th>Effort (1–10)</th>
         <th style="width:30px;"></th>
       </tr></thead>
@@ -1149,22 +1410,44 @@ function renderBuilder(){
         <td style="color:var(--muted);">${setIdx+1}</td>
         <td><input type="number" min="0" step="1" value="${escapeAttr(set.reps)}" class="set-reps"></td>
         <td><input type="number" min="0" step="0.5" value="${escapeAttr(set.weight)}" class="set-weight"></td>
-        <td>
-          <select class="set-unit">
-            <option value="lb" ${set.unit==='lb'?'selected':''}>lb</option>
-            <option value="kg" ${set.unit==='kg'?'selected':''}>kg</option>
-          </select>
-        </td>
         <td><input type="number" min="1" max="10" step="1" value="${escapeAttr(set.effort)}" class="set-effort"></td>
         <td class="set-del">✕</td>
       `;
       tr.querySelector('.set-reps').addEventListener('input', e=> set.reps = e.target.value);
       tr.querySelector('.set-weight').addEventListener('input', e=> set.weight = e.target.value);
-      tr.querySelector('.set-unit').addEventListener('change', e=> set.unit = e.target.value);
       tr.querySelector('.set-effort').addEventListener('input', e=> set.effort = e.target.value);
+
+      // Enter: jump to the same field on the next row, or — on the last row —
+      // add a new set and focus its Reps field, so you can log a whole exercise
+      // without touching the mouse.
+      const handleSetEnterKey = (e)=>{
+        if(e.key !== 'Enter') return;
+        e.preventDefault();
+        const colClass = e.target.classList.contains('set-reps') ? '.set-reps'
+          : e.target.classList.contains('set-weight') ? '.set-weight' : '.set-effort';
+        if(setIdx < ex.sets.length - 1){
+          const rows = table.querySelectorAll('tbody tr');
+          const nextInput = rows[setIdx + 1] && rows[setIdx + 1].querySelector(colClass);
+          if(nextInput) nextInput.focus();
+        } else {
+          const last = ex.sets[ex.sets.length - 1];
+          ex.sets.push({ reps: '', weight: '', unit: last.unit, effort: '' });
+          renderBuilder();
+          requestAnimationFrame(()=>{
+            const newBlock = document.querySelectorAll('.exercise-block')[exIdx];
+            const newRows = newBlock && newBlock.querySelectorAll('tbody tr');
+            const repsInput = newRows && newRows[newRows.length - 1].querySelector('.set-reps');
+            if(repsInput) repsInput.focus();
+          });
+        }
+      };
+      tr.querySelector('.set-reps').addEventListener('keydown', handleSetEnterKey);
+      tr.querySelector('.set-weight').addEventListener('keydown', handleSetEnterKey);
+      tr.querySelector('.set-effort').addEventListener('keydown', handleSetEnterKey);
+
       tr.querySelector('.set-del').addEventListener('click', ()=>{
         ex.sets.splice(setIdx,1);
-        if(ex.sets.length === 0) ex.sets.push({reps:'', weight:'', unit:'lb', effort:''});
+        if(ex.sets.length === 0) ex.sets.push({reps:'', weight:'', unit: exUnit, effort:''});
         renderBuilder();
       });
       tbody.appendChild(tr);
@@ -1216,12 +1499,26 @@ document.getElementById('save-day-btn').addEventListener('click', async ()=>{
     return;
   }
 
+  if(editingDate){
+    // Remove the original day first — addDay() only dedupes by matching the *new*
+    // date, so if the date was changed during editing the old entry would otherwise
+    // be left behind as an orphan.
+    await deleteDayByDate(editingDate);
+  }
+
   await addDay({ date, notes, exercises: cleanExercises });
 
+  editingDate = null;
+  updateEditBanner();
   draftExercises = [];
+  addExerciseToDraft();
   renderBuilder();
   document.getElementById('f-daynotes').value = '';
+  document.getElementById('f-date').valueAsDate = new Date();
 });
+
+document.getElementById('repeat-last-btn').addEventListener('click', repeatLastSession);
+document.getElementById('cancel-edit-btn').addEventListener('click', cancelEdit);
 
 // --- export / import ---
 document.getElementById('export-btn').addEventListener('click', ()=>{
@@ -1298,6 +1595,7 @@ function render(){
   renderStreak();
   renderPRs();
   renderProgressChart();
+  updateExerciseSuggestions();
 
   const wrap = document.getElementById('history');
   const emptyMsg = document.getElementById('empty-msg');
@@ -1353,13 +1651,31 @@ function render(){
       body.appendChild(notesDiv);
     }
 
+    const actionsRow = document.createElement('div');
+    actionsRow.style.cssText = 'display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn-ghost btn-small';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', (e)=>{ e.stopPropagation(); editDay(day.date); });
+    actionsRow.appendChild(editBtn);
+
+    const againBtn = document.createElement('button');
+    againBtn.type = 'button';
+    againBtn.className = 'btn-ghost btn-small';
+    againBtn.textContent = 'Log Again Today';
+    againBtn.addEventListener('click', (e)=>{ e.stopPropagation(); duplicateDay(day.date); });
+    actionsRow.appendChild(againBtn);
+
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-danger btn-small';
-    delBtn.style.marginTop = '14px';
     delBtn.textContent = 'Delete this day';
     delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteDay(day.id); });
-    body.appendChild(delBtn);
+    actionsRow.appendChild(delBtn);
+
+    body.appendChild(actionsRow);
 
     card.appendChild(body);
     wrap.appendChild(card);
@@ -1407,11 +1723,42 @@ function toDateStr(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function renderStreak(){
+function computeStreakStats(){
   const loggedDates = new Map(); // dateStr -> exercise count (for heatmap intensity)
   days.forEach(day=>{
     loggedDates.set(day.date, (day.exercises || []).length);
   });
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  let current = 0;
+  let cursor = new Date(today);
+  if(!loggedDates.has(toDateStr(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while(loggedDates.has(toDateStr(cursor))){
+    current++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  const sortedDates = [...loggedDates.keys()].sort();
+  let longest = 0, run = 0, prevDate = null;
+  sortedDates.forEach(ds=>{
+    const d = dateToLocalMidnight(ds);
+    if(prevDate){
+      const dayDiff = Math.round((d - prevDate) / 86400000);
+      run = dayDiff === 1 ? run + 1 : 1;
+    } else {
+      run = 1;
+    }
+    longest = Math.max(longest, run);
+    prevDate = d;
+  });
+
+  return { current, longest, loggedDates };
+}
+
+function renderStreak(){
+  const { current, longest, loggedDates } = computeStreakStats();
 
   // Build last 84 days (12 weeks), ending today, Sunday-start columns.
   const today = new Date();
@@ -1441,30 +1788,6 @@ function renderStreak(){
     heatmap.appendChild(cell);
   }
 
-  // Current streak: walk backward from today (or yesterday if today not logged yet).
-  let current = 0;
-  let cursor = new Date(today);
-  if(!loggedDates.has(toDateStr(cursor))) cursor.setDate(cursor.getDate() - 1);
-  while(loggedDates.has(toDateStr(cursor))){
-    current++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  // Longest streak: scan all logged dates sorted chronologically.
-  const sortedDates = [...loggedDates.keys()].sort();
-  let longest = 0, run = 0, prevDate = null;
-  sortedDates.forEach(ds=>{
-    const d = dateToLocalMidnight(ds);
-    if(prevDate){
-      const dayDiff = Math.round((d - prevDate) / 86400000);
-      run = dayDiff === 1 ? run + 1 : 1;
-    } else {
-      run = 1;
-    }
-    longest = Math.max(longest, run);
-    prevDate = d;
-  });
-
   document.getElementById('current-streak').textContent = current;
   document.getElementById('longest-streak').textContent = longest;
   document.getElementById('total-days').textContent = loggedDates.size;
@@ -1473,11 +1796,8 @@ function renderStreak(){
 // ============================================================
 // Personal Records
 // ============================================================
-function renderPRs(){
-  const wrap = document.getElementById('pr-grid');
-  const emptyMsg = document.getElementById('empty-pr-msg');
+function computeAllPRs(){
   const prs = new Map(); // exercise name -> {weight, unit, reps, date}
-
   days.forEach(day=>{
     (day.exercises || []).forEach(ex=>{
       ex.sets.forEach(set=>{
@@ -1489,6 +1809,13 @@ function renderPRs(){
       });
     });
   });
+  return prs;
+}
+
+function renderPRs(){
+  const wrap = document.getElementById('pr-grid');
+  const emptyMsg = document.getElementById('empty-pr-msg');
+  const prs = computeAllPRs();
 
   wrap.innerHTML = '';
   if(prs.size === 0){
@@ -1521,6 +1848,11 @@ function allExerciseNames(){
   const names = new Set();
   days.forEach(day=> (day.exercises || []).forEach(ex=> names.add(ex.name)));
   return [...names].sort();
+}
+
+function updateExerciseSuggestions(){
+  const list = document.getElementById('exercise-suggestions');
+  list.innerHTML = allExerciseNames().map(n=> `<option value="${n.replace(/"/g,'&quot;')}">`).join('');
 }
 
 function renderProgressChart(){
@@ -1583,9 +1915,9 @@ function renderProgressChart(){
       datasets: [{
         label: metric === 'weight' ? `${selectedExercise} — top set` : `${selectedExercise} — volume`,
         data: points.map(p=> p.y),
-        borderColor: '#ff2f9e',
-        backgroundColor: 'rgba(255,47,158,0.15)',
-        pointBackgroundColor: '#ff8ad1',
+        borderColor: cssVar('--accent'),
+        backgroundColor: hexToRgba(cssVar('--accent'), 0.15),
+        pointBackgroundColor: cssVar('--accent-2'),
         pointRadius: 4,
         tension: 0.25,
         fill: true,
@@ -1595,8 +1927,8 @@ function renderProgressChart(){
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { type: 'category', grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } },
-        y: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } }
+        x: { type: 'category', grid: { color: cssVar('--border') }, ticks: { color: cssVar('--muted'), font: { size: 11 } } },
+        y: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--muted'), font: { size: 11 } } }
       },
       plugins: { legend: { display: false } }
     }
@@ -1606,18 +1938,35 @@ function renderProgressChart(){
 // ============================================================
 // Tab navigation
 // ============================================================
-document.getElementById('tab-bar').addEventListener('click', (e)=>{
-  const btn = e.target.closest('.tab-btn');
-  if(!btn) return;
-  const target = btn.dataset.tab;
-
-  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b === btn));
+function switchTab(target){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === target));
   document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
 
   // Chart.js can render broken/zero-size if it was first drawn while its tab was
   // hidden (display:none breaks its sizing math) — force a clean redraw on switch.
   if(target === 'progress'){
     renderProgressChart();
+  }
+}
+
+document.getElementById('tab-bar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+// --- global keyboard shortcuts ---
+document.addEventListener('keydown', (e)=>{
+  const onLogTab = document.querySelector('.tab-panel[data-tab="log"]').classList.contains('active');
+
+  if((e.metaKey || e.ctrlKey) && e.key === 'Enter' && onLogTab){
+    e.preventDefault();
+    document.getElementById('save-day-btn').click();
+    return;
+  }
+  if(e.key === 'Escape' && editingDate && onLogTab){
+    e.preventDefault();
+    cancelEdit();
   }
 });
 
