@@ -3,56 +3,552 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fitness Macro Calculator</title>
-      <link rel="icon" type="image/png" href="macromate.png">
-
-
-<link rel="stylesheet" href="style.css">
-
+<title>MacroMate — Fitness Macro Calculator</title>
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --bg:#0a0509;
+    --card:#160d15;
+    --card-2:#1c1119;
+    --border:#3a1a30;
+    --text:#ffffff;
+    --sub:#c3aebb;
+    --muted:#8b7a86;
+    --accent:#ff2f9e;
+    --accent-2:#ff8ad1;
+    --green:#6fcf97;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,47,158,0.14), transparent 55%),
+      radial-gradient(circle at 85% 100%, rgba(255,138,209,0.08), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent);color:#fff;}
 
+  header{
+    max-width:900px;
+    margin:0 auto;
+    padding:40px 24px 24px;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--muted); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    letter-spacing:.04em; margin-bottom:20px;
+    transition:color .15s ease;
+  }
+  .back-link:hover{color:var(--accent-2);}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent-2); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(40px,7vw,64px);
+    letter-spacing:.02em;
+    margin:0 0 8px;
+    line-height:.95;
+    background:linear-gradient(90deg, #ffffff, var(--accent-2));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  header p{ color:var(--sub); max-width:56ch; margin:0; font-size:15px; }
+
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:0 24px 80px;
+    display:grid;
+    gap:24px;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:24px;
+  }
+  .panel h2{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:22px; letter-spacing:.03em; margin:0 0 4px;
+  }
+  .panel .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
+
+  .grid-form{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+    gap:14px;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  }
+  .field input, .field select{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:10px 10px;
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+  }
+  .field input:focus, .field select:focus{
+    outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);
+  }
+
+  .radio-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .radio-pill{
+    flex:1;
+    min-width:120px;
+  }
+  .radio-pill input{ display:none; }
+  .radio-pill label{
+    display:block;
+    text-align:center;
+    padding:10px 12px;
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+    color:var(--sub);
+  }
+  .radio-pill input:checked + label{
+    border-color:var(--accent);
+    color:var(--text);
+    background:linear-gradient(135deg, rgba(255,47,158,0.18), rgba(255,138,209,0.10));
+  }
+
+  .field-with-unit{
+    display:flex;
+    gap:8px;
+    align-items:stretch;
+  }
+  .field-with-unit input{ flex:1; min-width:0; }
+  .unit-toggle{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:6px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .unit-btn{
+    background:var(--card-2);
+    color:var(--sub);
+    border:none;
+    border-radius:0;
+    width:auto;
+    margin:0;
+    padding:0 12px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:600;
+    font-size:12px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .unit-btn:hover{ filter:none; color:var(--text); }
+  .unit-btn.active{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#1a0512;
+  }
+
+  button{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border-radius:6px;
+    border:none;
+    padding:12px 24px;
+    cursor:pointer;
+    transition:transform .08s ease, filter .15s ease;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#1a0512;
+    width:100%;
+    margin-top:20px;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:scale(.98); }
+
+  .results{ display:none; }
+  .results.show{ display:grid; gap:18px; }
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px;
+  }
+  .stat-card{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+    text-align:center;
+  }
+  .stat-card .label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); margin-bottom:8px;
+  }
+  .stat-card .value{
+    font-family:'JetBrains Mono',monospace;
+    font-size:24px; font-weight:700;
+  }
+  .stat-card .value .unit{ font-size:13px; color:var(--muted); font-weight:400; }
+  .stat-card.highlight{ border-color:var(--accent); }
+  .stat-card.highlight .value{ color:var(--accent-2); }
+
+  .macro-bars{ display:grid; gap:10px; }
+  .macro-row{ display:flex; align-items:center; gap:12px; }
+  .macro-row .name{ width:80px; font-size:13px; color:var(--sub); flex-shrink:0; }
+  .macro-row .bar-track{
+    flex:1; height:10px; background:var(--card-2); border-radius:6px; overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .macro-row .bar-fill{ height:100%; border-radius:6px; }
+  .macro-row .amount{
+    width:90px; text-align:right; font-family:'JetBrains Mono',monospace;
+    font-size:13px; color:var(--text); flex-shrink:0;
+  }
+
+  .chart-wrap{ height:260px; }
+
+  footer{
+    max-width:900px; margin:0 auto; padding:0 24px 60px;
+    color:var(--muted); font-size:12px;
+  }
+</style>
 </head>
-
 <body>
 
-<div class="app">
+<header>
+  <a class="back-link" href="../../index.html">← Apps</a>
+  <p class="eyebrow">// calorie &amp; macro calculator</p>
+  <h1>MACROMATE</h1>
+  <p>Calculate your daily calorie target, macro split, and a realistic timeline to hit your goal weight.</p>
+</header>
 
-<h1>Fitness Macro Calculator</h1>
+<main>
 
-<div class="form">
+  <section class="panel">
+    <h2>Your Info</h2>
+    <p class="sub">All fields required. Pick whichever units you're comfortable with.</p>
 
-<input type="number" id="age" placeholder="Age">
+    <div class="grid-form">
+      <div class="field">
+        <label for="age">Age</label>
+        <input type="number" id="age" min="14" max="100" placeholder="e.g. 28">
+      </div>
+      <div class="field">
+        <label for="height">Height</label>
+        <div class="field-with-unit">
+          <input type="number" id="height" min="1" placeholder="e.g. 175">
+          <div class="unit-toggle" data-group="height-unit">
+            <button type="button" class="unit-btn active" data-value="cm">cm</button>
+            <button type="button" class="unit-btn" data-value="in">in</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="weight">Current Weight</label>
+        <div class="field-with-unit">
+          <input type="number" id="weight" min="1" placeholder="e.g. 180">
+          <div class="unit-toggle" data-group="weight-unit">
+            <button type="button" class="unit-btn active" data-value="lbs">lbs</button>
+            <button type="button" class="unit-btn" data-value="kg">kg</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="goalWeight">Goal Weight</label>
+        <div class="field-with-unit">
+          <input type="number" id="goalWeight" min="1" placeholder="e.g. 165">
+          <div class="unit-toggle" data-group="weight-unit">
+            <button type="button" class="unit-btn active" data-value="lbs">lbs</button>
+            <button type="button" class="unit-btn" data-value="kg">kg</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<select id="gender">
-<option value="male">Male</option>
-<option value="female">Female</option>
-</select>
+    <div class="grid-form" style="margin-top:14px;">
+      <div class="field">
+        <label>Gender</label>
+        <div class="radio-row">
+          <div class="radio-pill">
+            <input type="radio" name="gender" id="gender-male" value="male" checked>
+            <label for="gender-male">Male</label>
+          </div>
+          <div class="radio-pill">
+            <input type="radio" name="gender" id="gender-female" value="female">
+            <label for="gender-female">Female</label>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="activity">Activity Level</label>
+        <select id="activity">
+          <option value="1.2">Sedentary (no exercise)</option>
+          <option value="1.375">Light (1–3 days/week)</option>
+          <option value="1.55" selected>Moderate (3–5 days/week)</option>
+          <option value="1.725">Heavy (6–7 days/week)</option>
+          <option value="1.9">Athlete (2x/day)</option>
+        </select>
+      </div>
+    </div>
 
-<input type="number" id="height" placeholder="Height (cm)">
+    <div class="field" style="margin-top:14px;">
+      <label>Pace</label>
+      <div class="radio-row">
+        <div class="radio-pill">
+          <input type="radio" name="pace" id="pace-slow" value="0.5">
+          <label for="pace-slow">Gradual (0.5 lb/wk)</label>
+        </div>
+        <div class="radio-pill">
+          <input type="radio" name="pace" id="pace-mod" value="1" checked>
+          <label for="pace-mod">Moderate (1 lb/wk)</label>
+        </div>
+        <div class="radio-pill">
+          <input type="radio" name="pace" id="pace-fast" value="2">
+          <label for="pace-fast">Aggressive (2 lb/wk)</label>
+        </div>
+      </div>
+    </div>
 
-<input type="number" id="weight" placeholder="Current Weight (lbs)">
+    <button type="button" id="calc-btn">Calculate Plan</button>
+  </section>
 
-<input type="number" id="goalWeight" placeholder="Goal Weight (lbs)">
+  <section class="panel results" id="results-panel">
+    <h2>Your Plan</h2>
+    <p class="sub" id="plan-summary"></p>
 
-<select id="activity">
-<option value="1.2">No Exercise</option>
-<option value="1.375">Light Exercise</option>
-<option value="1.55">Moderate Exercise</option>
-<option value="1.725">Heavy Exercise</option>
-</select>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">BMR</div>
+        <div class="value" id="stat-bmr">—<span class="unit"> cal</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Maintenance</div>
+        <div class="value" id="stat-tdee">—<span class="unit"> cal</span></div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="label">Daily Target</div>
+        <div class="value" id="stat-target">—<span class="unit"> cal</span></div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="label">Time to Goal</div>
+        <div class="value" id="stat-weeks">—<span class="unit"> wks</span></div>
+      </div>
+    </div>
 
-<button onclick="calculate()">Calculate Plan</button>
+    <div class="macro-bars" id="macro-bars"></div>
 
-</div>
+    <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+  </section>
 
-<div class="results" id="results"></div>
+</main>
 
-<canvas id="weightChart"></canvas>
-  
-<a class="back" href="../../index.html">⬅ Back to the Main Menu</a>
-</div>
+<footer>
+  Estimates use the Mifflin-St Jeor equation and a standard 3,500 kcal-per-pound energy balance. Actual results vary by individual — treat this as a starting point, not medical advice.
+</footer>
 
-<script src="script.js"></script>
+<script>
+let chart = null;
+
+// --- unit toggles (height: cm/in, weight: lbs/kg — shared between current & goal) ---
+document.querySelectorAll('.unit-toggle').forEach(toggle=>{
+  toggle.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.unit-btn');
+    if(!btn) return;
+    const group = toggle.dataset.group;
+    const value = btn.dataset.value;
+    // Sync every toggle in this group (height-unit, or weight-unit which appears twice).
+    document.querySelectorAll(`.unit-toggle[data-group="${group}"]`).forEach(t=>{
+      t.querySelectorAll('.unit-btn').forEach(b=>{
+        b.classList.toggle('active', b.dataset.value === value);
+      });
+    });
+    updatePlaceholders();
+  });
+});
+
+function getUnit(group){
+  return document.querySelector(`.unit-toggle[data-group="${group}"] .unit-btn.active`).dataset.value;
+}
+
+function updatePlaceholders(){
+  const heightUnit = getUnit('height-unit');
+  document.getElementById('height').placeholder = heightUnit === 'cm' ? 'e.g. 175' : 'e.g. 69';
+  const weightUnit = getUnit('weight-unit');
+  document.getElementById('weight').placeholder = weightUnit === 'lbs' ? 'e.g. 180' : 'e.g. 82';
+  document.getElementById('goalWeight').placeholder = weightUnit === 'lbs' ? 'e.g. 165' : 'e.g. 75';
+}
+
+document.getElementById('calc-btn').addEventListener('click', calculate);
+
+function calculate(){
+  const age = parseFloat(document.getElementById('age').value);
+  const heightRaw = parseFloat(document.getElementById('height').value);
+  const weightRaw = parseFloat(document.getElementById('weight').value);
+  const goalRaw = parseFloat(document.getElementById('goalWeight').value);
+  const gender = document.querySelector('input[name="gender"]:checked').value;
+  const activity = parseFloat(document.getElementById('activity').value);
+  const paceLbPerWeek = parseFloat(document.querySelector('input[name="pace"]:checked').value);
+
+  if(!age || !heightRaw || !weightRaw || !goalRaw || age <= 0 || heightRaw <= 0 || weightRaw <= 0 || goalRaw <= 0){
+    alert('Fill in age, height, current weight, and goal weight — all as positive numbers.');
+    return;
+  }
+
+  const heightUnit = getUnit('height-unit');
+  const weightUnit = getUnit('weight-unit');
+
+  // Convert to canonical internal units (cm, lbs) regardless of what was selected.
+  const heightCm = heightUnit === 'cm' ? heightRaw : heightRaw * 2.54;
+  const weightLbs = weightUnit === 'lbs' ? weightRaw : weightRaw / 0.453592;
+  const goalLbs = weightUnit === 'lbs' ? goalRaw : goalRaw / 0.453592;
+
+  const weightKg = weightLbs * 0.453592;
+
+  // Mifflin-St Jeor
+  let bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age);
+  bmr += (gender === 'male') ? 5 : -161;
+
+  const tdee = bmr * activity;
+
+  const weightDiff = goalLbs - weightLbs; // positive = gain, negative = loss
+  const direction = weightDiff === 0 ? 'maintain' : (weightDiff > 0 ? 'gain' : 'lose');
+
+  // 1 lb of body weight ≈ 3,500 kcal. Daily adjustment needed for the chosen weekly pace.
+  const dailyAdjustment = (paceLbPerWeek * 3500) / 7;
+  let target;
+  if(direction === 'lose') target = tdee - dailyAdjustment;
+  else if(direction === 'gain') target = tdee + dailyAdjustment;
+  else target = tdee;
+
+  // Keep target within a sane floor so the math never suggests something unsafe.
+  const floor = gender === 'male' ? 1500 : 1200;
+  target = Math.max(target, floor);
+
+  const weeksToGoal = direction === 'maintain'
+    ? 0
+    : Math.abs(weightDiff) / paceLbPerWeek;
+
+  // Macros: protein by bodyweight, fat as % of calories, carbs fill the rest.
+  const proteinPerLb = direction === 'lose' ? 1.0 : 0.8;
+  const proteinG = weightLbs * proteinPerLb;
+  const proteinCal = proteinG * 4;
+
+  const fatCal = target * 0.28;
+  const fatG = fatCal / 9;
+
+  const carbCal = Math.max(target - proteinCal - fatCal, 0);
+  const carbG = carbCal / 4;
+
+  renderResults({
+    bmr, tdee, target, weeksToGoal, direction,
+    weightLbs, goalLbs, weightUnit, weightDisplay: weightRaw, goalDisplay: goalRaw,
+    proteinG, fatG, carbG, proteinCal, fatCal, carbCal
+  });
+}
+
+function renderResults(r){
+  document.getElementById('results-panel').classList.add('show');
+
+  const dirText = r.direction === 'maintain'
+    ? `You're already at your goal weight — this is your maintenance plan.`
+    : `To ${r.direction} from ${r.weightDisplay}${r.weightUnit} to ${r.goalDisplay}${r.weightUnit}, aim for about ${Math.round(r.target)} calories a day.`;
+  document.getElementById('plan-summary').textContent = dirText;
+
+  document.getElementById('stat-bmr').innerHTML = `${Math.round(r.bmr)}<span class="unit"> cal</span>`;
+  document.getElementById('stat-tdee').innerHTML = `${Math.round(r.tdee)}<span class="unit"> cal</span>`;
+  document.getElementById('stat-target').innerHTML = `${Math.round(r.target)}<span class="unit"> cal</span>`;
+  document.getElementById('stat-weeks').innerHTML = r.direction === 'maintain'
+    ? `—`
+    : `${r.weeksToGoal.toFixed(1)}<span class="unit"> wks</span>`;
+
+  const macros = [
+    { name: 'Protein', grams: r.proteinG, cal: r.proteinCal, color: '#ff2f9e' },
+    { name: 'Carbs', grams: r.carbG, cal: r.carbCal, color: '#ff8ad1' },
+    { name: 'Fat', grams: r.fatG, cal: r.fatCal, color: '#6fcf97' },
+  ];
+  const totalCal = macros.reduce((s,m)=> s + m.cal, 0);
+  const barsWrap = document.getElementById('macro-bars');
+  barsWrap.innerHTML = '';
+  macros.forEach(m=>{
+    const pct = totalCal > 0 ? (m.cal / totalCal) * 100 : 0;
+    const row = document.createElement('div');
+    row.className = 'macro-row';
+    row.innerHTML = `
+      <div class="name">${m.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${m.color};"></div></div>
+      <div class="amount">${Math.round(m.grams)}g</div>
+    `;
+    barsWrap.appendChild(row);
+  });
+
+  renderChart(r);
+}
+
+function renderChart(r){
+  const weeks = r.direction === 'maintain' ? 1 : Math.max(Math.ceil(r.weeksToGoal), 1);
+  const labels = [];
+  const data = [];
+  const toDisplay = (lbs)=> r.weightUnit === 'lbs' ? lbs : lbs * 0.453592;
+  for(let i = 0; i <= weeks; i++){
+    labels.push(`Wk ${i}`);
+    if(r.direction === 'maintain'){
+      data.push(toDisplay(r.weightLbs));
+    } else {
+      const progress = Math.min(i / r.weeksToGoal, 1);
+      data.push(toDisplay(r.weightLbs + (r.goalLbs - r.weightLbs) * progress));
+    }
+  }
+
+  const ctx = document.getElementById('weightChart').getContext('2d');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: `Projected weight (${r.weightUnit})`,
+        data,
+        borderColor: '#ff2f9e',
+        backgroundColor: 'rgba(255,47,158,0.15)',
+        pointBackgroundColor: '#ff8ad1',
+        pointRadius: 3,
+        tension: 0.2,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } },
+        y: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+</script>
 
 </body>
 </html>
