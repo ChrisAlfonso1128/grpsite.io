@@ -87,6 +87,7 @@
     border:2px solid var(--green-dim);
     box-shadow:0 0 20px rgba(57,255,106,0.15), inset 0 0 20px rgba(57,255,106,0.05);
     width:min(400px, 90vw);
+    touch-action:none;
   }
   canvas{
     display:block;
@@ -138,19 +139,6 @@
     max-width:320px;
   }
 
-  .touch-controls{
-    display:none;
-    margin-top:18px;
-    gap:8px;
-    grid-template-columns:repeat(3, 56px);
-    grid-template-rows:repeat(2, 56px);
-  }
-  .touch-controls button{
-    padding:0; font-size:20px;
-  }
-  @media (pointer:coarse){
-    .touch-controls{ display:grid; }
-  }
 </style>
 </head>
 <body>
@@ -173,16 +161,7 @@
   </div>
 </div>
 
-<p class="controls-hint">Arrow keys or WASD to move. Space to pause/restart.</p>
-
-<div class="touch-controls">
-  <div></div>
-  <button id="btn-up">▲</button>
-  <div></div>
-  <button id="btn-left">◀</button>
-  <button id="btn-down">▼</button>
-  <button id="btn-right">▶</button>
-</div>
+<p class="controls-hint">Arrow keys, WASD, or swipe on the board to move. Space to pause/restart.</p>
 
 <script>
 const GRID = 20;
@@ -312,10 +291,34 @@ document.addEventListener('keydown', (e)=>{
   }
 });
 
-document.getElementById('btn-up').addEventListener('click', ()=> setDir(0,-1));
-document.getElementById('btn-down').addEventListener('click', ()=> setDir(0,1));
-document.getElementById('btn-left').addEventListener('click', ()=> setDir(-1,0));
-document.getElementById('btn-right').addEventListener('click', ()=> setDir(1,0));
+// --- swipe controls (fires as soon as the swipe crosses a small threshold, so
+// direction changes feel immediate rather than waiting for the finger to lift) ---
+(function(){
+  const target = document.querySelector('.game-wrap');
+  let startX = 0, startY = 0, fired = false;
+  const THRESHOLD = 18; // px of movement before a swipe registers
+
+  target.addEventListener('touchstart', (e)=>{
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY;
+    fired = false;
+  }, {passive:true});
+
+  target.addEventListener('touchmove', (e)=>{
+    e.preventDefault(); // stop the page from scrolling while swiping on the board
+    if(fired) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if(Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+    if(Math.abs(dx) > Math.abs(dy)){
+      setDir(dx > 0 ? 1 : -1, 0);
+    } else {
+      setDir(0, dy > 0 ? 1 : -1);
+    }
+    fired = true;
+  }, {passive:false});
+})();
 document.getElementById('restart-btn').addEventListener('click', resetGame);
 document.getElementById('overlay').addEventListener('click', ()=>{ if(gameOver) resetGame(); });
 
