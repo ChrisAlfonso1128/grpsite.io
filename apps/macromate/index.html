@@ -46,6 +46,7 @@
     --glow-1:rgba(224,34,127,0.08);
     --glow-2:rgba(201,61,143,0.05);
   }
+  html{ touch-action:manipulation; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -144,10 +145,10 @@
     background:var(--card-2);
     border:1px solid var(--border);
     border-radius:6px;
-    padding:10px 10px;
+    padding:11px 10px;
     color:var(--text);
     font-family:'JetBrains Mono',monospace;
-    font-size:14px;
+    font-size:16px;
   }
   .field input:focus, .field select:focus{
     outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);
