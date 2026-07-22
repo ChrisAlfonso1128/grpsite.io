@@ -19,6 +19,7 @@
     --flag:#ffb020;
     --safe:#7ec850;
   }
+  html{ touch-action:manipulation; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -130,7 +131,7 @@
     gap:2px;
   }
   .cell{
-    width:28px; height:28px;
+    width:34px; height:34px;
     background:var(--panel-2);
     border:1px solid var(--border);
     border-radius:2px;
@@ -139,7 +140,7 @@
     justify-content:center;
     font-family:'JetBrains Mono',monospace;
     font-weight:700;
-    font-size:13px;
+    font-size:15px;
     cursor:pointer;
     user-select:none;
     -webkit-user-select:none;
@@ -253,7 +254,7 @@ function initBoard(diff){
 
 function buildBoardDom(){
   const boardEl = document.getElementById('board');
-  boardEl.style.gridTemplateColumns = `repeat(${cols}, 28px)`;
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, 34px)`;
   boardEl.innerHTML = '';
   for(let y=0; y<rows; y++){
     for(let x=0; x<cols; x++){
