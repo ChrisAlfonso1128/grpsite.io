@@ -43,6 +43,7 @@
     --green:#2f9e5f;
     --red:#c94f36;
   }
+  html{ touch-action:manipulation; }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -147,10 +148,10 @@
     background:var(--panel-2);
     border:1px solid var(--line);
     border-radius:6px;
-    padding:9px 10px;
+    padding:11px 10px;
     color:var(--text);
     font-family:'JetBrains Mono',monospace;
-    font-size:14px;
+    font-size:16px;
   }
   .field input:focus, .field select:focus{
     outline:2px solid var(--amber);
@@ -258,7 +259,10 @@
   }
   tbody tr:hover{background:var(--panel-2);}
   .table-scroll{overflow-x:auto; max-height:420px; overflow-y:auto;}
-  td.del{cursor:pointer; color:var(--muted);}
+  td.del{
+    cursor:pointer; color:var(--muted); font-size:16px;
+    text-align:center; min-width:40px;
+  }
   td.del:hover{color:var(--red);}
 
   .empty{
