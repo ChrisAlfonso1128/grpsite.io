@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0a0509;
@@ -122,6 +123,34 @@
     display:grid;
     gap:24px;
   }
+
+  .tab-bar{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:4px;
+    border-bottom:1px solid var(--border);
+  }
+  .tab-btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    background:transparent;
+    color:var(--muted);
+    border:none;
+    border-bottom:2px solid transparent;
+    padding:10px 14px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.active{
+    color:var(--text);
+    border-bottom-color:var(--accent);
+  }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:grid; gap:24px; }
 
   .panel{
     background:var(--card);
@@ -282,6 +311,87 @@
 
   .empty{ color:var(--muted); font-size:14px; padding:32px 0; text-align:center; }
 
+  /* --- streak calendar --- */
+  .streak-stats{
+    display:flex;
+    gap:24px;
+    margin-bottom:18px;
+  }
+  .streak-stat .n{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:32px;
+    color:var(--accent-2);
+    line-height:1;
+  }
+  .streak-stat .label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+  }
+  .heatmap-wrap{
+    overflow-x:auto;
+    padding-bottom:6px;
+  }
+  .heatmap{
+    display:grid;
+    grid-auto-flow:column;
+    grid-template-rows:repeat(7, 14px);
+    gap:3px;
+    width:max-content;
+  }
+  .heatmap-cell{
+    width:14px; height:14px;
+    border-radius:3px;
+    background:var(--card-2);
+    border:1px solid var(--border);
+  }
+  .heatmap-cell[data-level="1"]{ background:rgba(255,47,158,0.35); border-color:rgba(255,47,158,0.4); }
+  .heatmap-cell[data-level="2"]{ background:rgba(255,47,158,0.6); border-color:rgba(255,47,158,0.65); }
+  .heatmap-cell[data-level="3"]{ background:var(--accent); border-color:var(--accent); }
+  .heatmap-cell:hover{ outline:1px solid var(--text); }
+
+  /* --- PR cards --- */
+  .pr-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+    gap:12px;
+  }
+  .pr-card{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:14px 16px;
+  }
+  .pr-card .name{
+    font-size:13px; color:var(--muted); margin-bottom:6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pr-card .weight{
+    font-family:'JetBrains Mono',monospace;
+    font-size:22px; font-weight:700; color:var(--accent-2);
+  }
+  .pr-card .weight .unit{ font-size:12px; color:var(--muted); font-weight:400; }
+  .pr-card .meta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; color:var(--muted); margin-top:4px;
+  }
+
+  /* --- progress chart --- */
+  .chart-controls{
+    display:flex;
+    gap:12px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .chart-controls select{
+    background:var(--card-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:9px 10px;
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+  }
+  .chart-wrap-progress{ height:280px; }
+
   /* --- templates / routines --- */
   .template-grid{
     display:grid;
@@ -338,54 +448,110 @@
 
 <main>
 
-  <!-- Log a day -->
-  <section class="panel">
-    <h2>Log a Day</h2>
-    <p class="sub">Add exercises and sets below, then save the whole session at once.</p>
+  <div class="tab-bar" id="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="log">Log</button>
+    <button type="button" class="tab-btn" data-tab="routines">Routines</button>
+    <button type="button" class="tab-btn" data-tab="streak">Streak</button>
+    <button type="button" class="tab-btn" data-tab="records">Records</button>
+    <button type="button" class="tab-btn" data-tab="progress">Progress</button>
+    <button type="button" class="tab-btn" data-tab="history">History</button>
+  </div>
 
-    <div class="day-meta">
-      <div class="field">
-        <label for="f-date">Date</label>
-        <input type="date" id="f-date" required>
+  <div class="tab-panel active" data-tab="log">
+    <!-- Log a day -->
+    <section class="panel">
+      <h2>Log a Day</h2>
+      <p class="sub">Add exercises and sets below, then save the whole session at once.</p>
+
+      <div class="day-meta">
+        <div class="field">
+          <label for="f-date">Date</label>
+          <input type="date" id="f-date" required>
+        </div>
+        <div class="field">
+          <label for="f-daynotes">Notes (optional)</label>
+          <input type="text" id="f-daynotes" placeholder="e.g. push day, felt strong">
+        </div>
       </div>
-      <div class="field">
-        <label for="f-daynotes">Notes (optional)</label>
-        <input type="text" id="f-daynotes" placeholder="e.g. push day, felt strong">
+
+      <div id="exercise-builder"></div>
+
+      <button type="button" class="btn-ghost" id="add-exercise-btn">+ Add Exercise</button>
+
+      <div class="row-actions">
+        <div style="display:flex; gap:10px;">
+          <button type="button" id="export-btn" class="btn-ghost">Export backup (.json)</button>
+          <button type="button" id="import-btn" class="btn-ghost">Import backup</button>
+          <input type="file" id="import-file" accept="application/json" style="display:none;">
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button type="button" id="save-template-btn" class="btn-ghost">Save as Routine</button>
+          <button type="button" id="save-day-btn" class="btn-primary">Save Day</button>
+        </div>
       </div>
-    </div>
+    </section>
+  </div>
 
-    <div id="exercise-builder"></div>
+  <div class="tab-panel" data-tab="routines">
+    <!-- Saved Routines -->
+    <section class="panel">
+      <h2>Saved Routines</h2>
+      <p class="sub">Push Day, Pull Day, Leg Day — whatever splits you use. Load one into today's log, then just adjust the weights.</p>
+      <div class="template-grid" id="templates"></div>
+      <p class="empty" id="empty-templates-msg" style="display:none;">No saved routines yet — build a workout above and hit "Save as Routine."</p>
+    </section>
+  </div>
 
-    <button type="button" class="btn-ghost" id="add-exercise-btn">+ Add Exercise</button>
-
-    <div class="row-actions">
-      <div style="display:flex; gap:10px;">
-        <button type="button" id="export-btn" class="btn-ghost">Export backup (.json)</button>
-        <button type="button" id="import-btn" class="btn-ghost">Import backup</button>
-        <input type="file" id="import-file" accept="application/json" style="display:none;">
+  <div class="tab-panel" data-tab="streak">
+    <!-- Streak Calendar -->
+    <section class="panel">
+      <h2>Streak</h2>
+      <p class="sub">Every square is a day you logged a workout. Last ~12 weeks.</p>
+      <div class="streak-stats">
+        <div class="streak-stat"><div class="n" id="current-streak">0</div><div class="label">current streak</div></div>
+        <div class="streak-stat"><div class="n" id="longest-streak">0</div><div class="label">longest streak</div></div>
+        <div class="streak-stat"><div class="n" id="total-days">0</div><div class="label">days logged</div></div>
       </div>
-      <div style="display:flex; gap:10px;">
-        <button type="button" id="save-template-btn" class="btn-ghost">Save as Routine</button>
-        <button type="button" id="save-day-btn" class="btn-primary">Save Day</button>
+      <div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
+    </section>
+  </div>
+
+  <div class="tab-panel" data-tab="records">
+    <!-- Personal Records -->
+    <section class="panel">
+      <h2>Personal Records</h2>
+      <p class="sub">Heaviest set ever logged for each exercise.</p>
+      <div class="pr-grid" id="pr-grid"></div>
+      <p class="empty" id="empty-pr-msg" style="display:none;">No PRs yet — log some weight to see them here.</p>
+    </section>
+  </div>
+
+  <div class="tab-panel" data-tab="progress">
+    <!-- Progress Chart -->
+    <section class="panel">
+      <h2>Progress</h2>
+      <p class="sub">Track an exercise's top set weight or total volume over time.</p>
+      <div class="chart-controls">
+        <select id="chart-exercise"></select>
+        <select id="chart-metric">
+          <option value="weight">Top Set Weight</option>
+          <option value="volume">Total Volume (sets × reps × weight)</option>
+        </select>
       </div>
-    </div>
-  </section>
+      <div class="chart-wrap-progress"><canvas id="progress-chart"></canvas></div>
+      <p class="empty" id="empty-chart-msg" style="display:none;">Log a couple of sessions for the same exercise to see a trend.</p>
+    </section>
+  </div>
 
-  <!-- Saved Routines -->
-  <section class="panel">
-    <h2>Saved Routines</h2>
-    <p class="sub">Push Day, Pull Day, Leg Day — whatever splits you use. Load one into today's log, then just adjust the weights.</p>
-    <div class="template-grid" id="templates"></div>
-    <p class="empty" id="empty-templates-msg" style="display:none;">No saved routines yet — build a workout above and hit "Save as Routine."</p>
-  </section>
-
-  <!-- History -->
-  <section class="panel">
-    <h2>History</h2>
-    <p class="sub">Tap a day to expand it. Most recent first.</p>
-    <div id="history"></div>
-    <p class="empty" id="empty-msg" style="display:none;">No workouts logged yet — add your first day above.</p>
-  </section>
+  <div class="tab-panel" data-tab="history">
+    <!-- History -->
+    <section class="panel">
+      <h2>History</h2>
+      <p class="sub">Tap a day to expand it. Most recent first.</p>
+      <div id="history"></div>
+      <p class="empty" id="empty-msg" style="display:none;">No workouts logged yet — add your first day above.</p>
+    </section>
+  </div>
 
 </main>
 
@@ -1129,6 +1295,10 @@ document.getElementById('save-template-btn').addEventListener('click', async ()=
 // History rendering
 // ============================================================
 function render(){
+  renderStreak();
+  renderPRs();
+  renderProgressChart();
+
   const wrap = document.getElementById('history');
   const emptyMsg = document.getElementById('empty-msg');
   wrap.innerHTML = '';
@@ -1224,6 +1394,232 @@ function renderTemplates(){
     wrap.appendChild(card);
   });
 }
+
+// ============================================================
+// Streak calendar
+// ============================================================
+function dateToLocalMidnight(dateStr){
+  // Parse "YYYY-MM-DD" as a local date (avoids UTC off-by-one issues).
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function toDateStr(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function renderStreak(){
+  const loggedDates = new Map(); // dateStr -> exercise count (for heatmap intensity)
+  days.forEach(day=>{
+    loggedDates.set(day.date, (day.exercises || []).length);
+  });
+
+  // Build last 84 days (12 weeks), ending today, Sunday-start columns.
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const totalDays = 84;
+  const startOffset = today.getDay(); // pad so columns align to weeks (Sun-Sat)
+  const gridStart = new Date(today);
+  gridStart.setDate(gridStart.getDate() - (totalDays - 1) - startOffset);
+
+  const heatmap = document.getElementById('heatmap');
+  heatmap.innerHTML = '';
+  for(let i = 0; i < totalDays + startOffset + (6 - today.getDay()); i++){
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i);
+    const ds = toDateStr(d);
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    if(d <= today){
+      const count = loggedDates.get(ds);
+      let level = 0;
+      if(count !== undefined) level = count >= 4 ? 3 : count >= 2 ? 2 : 1;
+      cell.dataset.level = level;
+      cell.title = `${ds}${count !== undefined ? ` — ${count} exercise${count!==1?'s':''}` : ''}`;
+    } else {
+      cell.style.visibility = 'hidden';
+    }
+    heatmap.appendChild(cell);
+  }
+
+  // Current streak: walk backward from today (or yesterday if today not logged yet).
+  let current = 0;
+  let cursor = new Date(today);
+  if(!loggedDates.has(toDateStr(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while(loggedDates.has(toDateStr(cursor))){
+    current++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  // Longest streak: scan all logged dates sorted chronologically.
+  const sortedDates = [...loggedDates.keys()].sort();
+  let longest = 0, run = 0, prevDate = null;
+  sortedDates.forEach(ds=>{
+    const d = dateToLocalMidnight(ds);
+    if(prevDate){
+      const dayDiff = Math.round((d - prevDate) / 86400000);
+      run = dayDiff === 1 ? run + 1 : 1;
+    } else {
+      run = 1;
+    }
+    longest = Math.max(longest, run);
+    prevDate = d;
+  });
+
+  document.getElementById('current-streak').textContent = current;
+  document.getElementById('longest-streak').textContent = longest;
+  document.getElementById('total-days').textContent = loggedDates.size;
+}
+
+// ============================================================
+// Personal Records
+// ============================================================
+function renderPRs(){
+  const wrap = document.getElementById('pr-grid');
+  const emptyMsg = document.getElementById('empty-pr-msg');
+  const prs = new Map(); // exercise name -> {weight, unit, reps, date}
+
+  days.forEach(day=>{
+    (day.exercises || []).forEach(ex=>{
+      ex.sets.forEach(set=>{
+        if(set.weight === undefined) return;
+        const existing = prs.get(ex.name);
+        if(!existing || set.weight > existing.weight){
+          prs.set(ex.name, { weight: set.weight, unit: set.unit || 'lb', reps: set.reps, date: day.date });
+        }
+      });
+    });
+  });
+
+  wrap.innerHTML = '';
+  if(prs.size === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  [...prs.entries()]
+    .sort((a,b)=> a[0].localeCompare(b[0]))
+    .forEach(([name, pr])=>{
+      const card = document.createElement('div');
+      card.className = 'pr-card';
+      card.innerHTML = `
+        <div class="name">${name}</div>
+        <div class="weight">${pr.weight}<span class="unit"> ${pr.unit}</span></div>
+        <div class="meta">${pr.reps !== undefined ? pr.reps + ' reps · ' : ''}${pr.date}</div>
+      `;
+      wrap.appendChild(card);
+    });
+}
+
+// ============================================================
+// Progress chart
+// ============================================================
+let progressChart = null;
+let chartListenersAttached = false;
+
+function allExerciseNames(){
+  const names = new Set();
+  days.forEach(day=> (day.exercises || []).forEach(ex=> names.add(ex.name)));
+  return [...names].sort();
+}
+
+function renderProgressChart(){
+  const exerciseSelect = document.getElementById('chart-exercise');
+  const metricSelect = document.getElementById('chart-metric');
+  const emptyMsg = document.getElementById('empty-chart-msg');
+  const names = allExerciseNames();
+
+  const previousValue = exerciseSelect.value;
+  exerciseSelect.innerHTML = names.map(n=> `<option value="${n}">${n}</option>`).join('');
+  if(names.includes(previousValue)) exerciseSelect.value = previousValue;
+
+  if(!chartListenersAttached){
+    exerciseSelect.addEventListener('change', renderProgressChart);
+    metricSelect.addEventListener('change', renderProgressChart);
+    chartListenersAttached = true;
+  }
+
+  if(names.length === 0){
+    emptyMsg.style.display = 'block';
+    document.getElementById('progress-chart').style.display = 'none';
+    if(progressChart){ progressChart.destroy(); progressChart = null; }
+    return;
+  }
+
+  const selectedExercise = exerciseSelect.value || names[0];
+  const metric = metricSelect.value;
+
+  const points = [];
+  [...days].sort((a,b)=> a.date.localeCompare(b.date)).forEach(day=>{
+    const ex = (day.exercises || []).find(e=> e.name === selectedExercise);
+    if(!ex) return;
+    const setsWithWeight = ex.sets.filter(s=> s.weight !== undefined);
+    if(setsWithWeight.length === 0) return;
+
+    let value;
+    if(metric === 'weight'){
+      value = Math.max(...setsWithWeight.map(s=> s.weight));
+    } else {
+      value = setsWithWeight.reduce((sum, s)=> sum + (s.weight * (s.reps || 0)), 0);
+    }
+    points.push({ x: day.date, y: value });
+  });
+
+  if(points.length < 2){
+    emptyMsg.style.display = 'block';
+    document.getElementById('progress-chart').style.display = 'none';
+    if(progressChart){ progressChart.destroy(); progressChart = null; }
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  document.getElementById('progress-chart').style.display = 'block';
+
+  const ctx = document.getElementById('progress-chart').getContext('2d');
+  if(progressChart) progressChart.destroy();
+  progressChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: points.map(p=> p.x),
+      datasets: [{
+        label: metric === 'weight' ? `${selectedExercise} — top set` : `${selectedExercise} — volume`,
+        data: points.map(p=> p.y),
+        borderColor: '#ff2f9e',
+        backgroundColor: 'rgba(255,47,158,0.15)',
+        pointBackgroundColor: '#ff8ad1',
+        pointRadius: 4,
+        tension: 0.25,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { type: 'category', grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } },
+        y: { grid: { color: '#3a1a30' }, ticks: { color: '#8b7a86', font: { size: 11 } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// ============================================================
+// Tab navigation
+// ============================================================
+document.getElementById('tab-bar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  const target = btn.dataset.tab;
+
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
+
+  // Chart.js can render broken/zero-size if it was first drawn while its tab was
+  // hidden (display:none breaks its sizing math) — force a clean redraw on switch.
+  if(target === 'progress'){
+    renderProgressChart();
+  }
+});
 
 addExerciseToDraft(); // start with one empty exercise ready to fill in
 render();
