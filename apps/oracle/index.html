@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle — Random Generators</title>
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('oracle_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html{ touch-action:manipulation; }
+  :root{
+    --bg:#0f0a1f;
+    --card:#1c1433;
+    --card-2:#251c42;
+    --border:#4a3878;
+    --text:#ede6ff;
+    --sub:#b8a8e0;
+    --muted:#7a6ba0;
+    --accent:#9b5de5;
+    --accent-2:#f0c419;
+    --green:#5a9e5f;
+    --red:#c9422f;
+    --glow-1:rgba(155,93,229,0.14);
+    --glow-2:rgba(240,196,25,0.08);
+  }
+  [data-theme="light"]{
+    --bg:#f2eefa;
+    --card:#ffffff;
+    --card-2:#ece3fa;
+    --border:#c9b8e8;
+    --text:#211539;
+    --sub:#5a4680;
+    --muted:#8a7ab0;
+    --accent:#7c3fc9;
+    --accent-2:#a8830f;
+    --green:#3f7a44;
+    --red:#a6291f;
+    --glow-1:rgba(124,63,201,0.08);
+    --glow-2:rgba(168,131,15,0.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'EB Garamond', serif;
+    -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
+  }
+  ::selection{ background:var(--accent-2); color:#1a120b; }
+
+  header{ max-width:1000px; margin:0 auto; padding:36px 24px 20px; }
+  .header-top-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; color:var(--muted); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.04em;
+    transition:color .15s ease;
+  }
+  .back-link:hover{ color:var(--accent-2); }
+  .theme-toggle-btn{
+    width:auto; margin:0; padding:8px 10px; background:var(--card-2); border:1px solid var(--border);
+    border-radius:8px; font-size:14px; line-height:1; cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent-2); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--accent-2); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Cinzel', serif; font-weight:900; font-size:clamp(38px,7vw,58px);
+    letter-spacing:.03em; margin:0 0 8px; color:var(--text); text-shadow:0 0 24px var(--glow-1);
+  }
+  header p{ color:var(--sub); max-width:60ch; margin:0; font-size:16px; font-style:italic; }
+
+  main{ max-width:1000px; margin:0 auto; padding:0 24px 80px; }
+
+  .tab-bar{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
+    border-bottom:1px solid var(--border); margin-bottom:24px;
+  }
+  .tab-btn{
+    font-family:'Cinzel', serif; font-weight:600; font-size:13px;
+    background:transparent; color:var(--muted); border:none;
+    border-bottom:2px solid transparent; padding:10px 14px; cursor:pointer;
+    white-space:nowrap; transition:color .15s ease, border-color .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.active{ color:var(--accent-2); border-bottom-color:var(--accent-2); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:grid; gap:20px; }
+
+  .panel{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:24px; }
+  .panel h2{ font-family:'Cinzel', serif; font-size:22px; font-weight:700; margin:0 0 4px; color:var(--accent-2); }
+  .panel .sub{ color:var(--muted); font-size:14px; margin:0 0 18px; font-style:italic; }
+
+  button{
+    font-family:'Cinzel', serif; font-weight:600; font-size:14px;
+    background:linear-gradient(135deg, var(--accent), #6a2fa8);
+    color:#f5ecff; border:none; border-radius:8px; padding:12px 22px;
+    cursor:pointer; transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.12); }
+  button:active{ transform:scale(.96); }
+  button.btn-ghost{ background:var(--card-2); color:var(--text); border:1px solid var(--border); }
+  button.btn-danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  button.btn-small{ padding:8px 14px; font-size:12px; min-height:36px; }
+
+  select{
+    background:var(--card-2); border:1px solid var(--border); border-radius:6px;
+    padding:10px 10px; color:var(--text); font-family:'EB Garamond', serif; font-size:16px;
+  }
+
+  .result-card{
+    background:var(--card-2); border:2px solid var(--accent-2); border-radius:12px;
+    padding:24px; margin-bottom:16px; min-height:60px;
+  }
+  .result-card.empty-state{ border-style:dashed; border-color:var(--border); color:var(--muted); font-style:italic; text-align:center; }
+  .result-title{ font-family:'Cinzel', serif; font-weight:700; font-size:19px; color:var(--accent-2); margin-bottom:8px; }
+  .result-line{ font-size:16px; color:var(--text); margin-bottom:4px; line-height:1.5; }
+  .result-tag{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); border:1px solid var(--border); border-radius:10px;
+    padding:2px 9px; margin-top:8px;
+  }
+
+  .btn-row{ display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+
+  .saved-list .roster-card{
+    background:var(--card-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px 18px; margin-bottom:10px;
+  }
+  .saved-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .saved-tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--accent-2); margin-bottom:6px; display:block;
+  }
+  .saved-text{ font-size:15px; color:var(--sub); line-height:1.5; }
+
+  .empty{ color:var(--muted); font-size:14px; padding:24px 0; text-align:center; font-style:italic; }
+
+  footer{ max-width:1000px; margin:0 auto; padding:0 24px 60px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Apps</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">☀️</button>
+  </div>
+  <p class="eyebrow">// instant inspiration</p>
+  <h1>ORACLE</h1>
+  <p>NPCs, tavern names, plot hooks, loot, and weather — conjured on demand for whatever your table needs next.</p>
+</header>
+
+<main>
+
+  <div class="tab-bar" id="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="npc">NPC</button>
+    <button type="button" class="tab-btn" data-tab="tavern">Tavern</button>
+    <button type="button" class="tab-btn" data-tab="hooks">Plot Hooks</button>
+    <button type="button" class="tab-btn" data-tab="loot">Loot</button>
+    <button type="button" class="tab-btn" data-tab="weather">Weather</button>
+    <button type="button" class="tab-btn" data-tab="saved">Saved</button>
+  </div>
+
+  <!-- NPC -->
+  <div class="tab-panel active" data-tab="npc">
+    <section class="panel">
+      <h2>NPC Conjurer</h2>
+      <p class="sub">A name, a race, a job, and a personality — ready to drop into any scene.</p>
+      <div class="result-card empty-state" id="npc-result">Tap "Conjure" to summon someone.</div>
+      <div class="btn-row">
+        <button type="button" id="npc-generate-btn">✨ Conjure NPC</button>
+        <button type="button" class="btn-ghost" id="npc-save-btn">Save</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- TAVERN -->
+  <div class="tab-panel" data-tab="tavern">
+    <section class="panel">
+      <h2>Tavern Namer</h2>
+      <p class="sub">For when the party needs somewhere to drink.</p>
+      <div class="result-card empty-state" id="tavern-result">Tap "Conjure" for a name.</div>
+      <div class="btn-row">
+        <button type="button" id="tavern-generate-btn">✨ Conjure Tavern</button>
+        <button type="button" class="btn-ghost" id="tavern-save-btn">Save</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- PLOT HOOKS -->
+  <div class="tab-panel" data-tab="hooks">
+    <section class="panel">
+      <h2>Plot Hook Generator</h2>
+      <p class="sub">A quick spark when the session needs somewhere to go.</p>
+      <div class="result-card empty-state" id="hooks-result">Tap "Conjure" for a hook.</div>
+      <div class="btn-row">
+        <button type="button" id="hooks-generate-btn">✨ Conjure Hook</button>
+        <button type="button" class="btn-ghost" id="hooks-save-btn">Save</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- LOOT -->
+  <div class="tab-panel" data-tab="loot">
+    <section class="panel">
+      <h2>Loot Roller</h2>
+      <p class="sub">Weighted toward common finds, with the occasional legendary surprise.</p>
+      <div class="result-card empty-state" id="loot-result">Tap "Roll" to crack open the chest.</div>
+      <div class="btn-row">
+        <button type="button" id="loot-generate-btn">✨ Roll Loot</button>
+        <button type="button" class="btn-ghost" id="loot-save-btn">Save</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- WEATHER -->
+  <div class="tab-panel" data-tab="weather">
+    <section class="panel">
+      <h2>Weather</h2>
+      <p class="sub">Pick a season, conjure the conditions.</p>
+      <div class="field" style="margin-bottom:16px; max-width:200px;">
+        <select id="weather-season">
+          <option value="Spring">Spring</option>
+          <option value="Summer" selected>Summer</option>
+          <option value="Autumn">Autumn</option>
+          <option value="Winter">Winter</option>
+        </select>
+      </div>
+      <div class="result-card empty-state" id="weather-result">Tap "Conjure" for today's weather.</div>
+      <div class="btn-row">
+        <button type="button" id="weather-generate-btn">✨ Conjure Weather</button>
+        <button type="button" class="btn-ghost" id="weather-save-btn">Save</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- SAVED -->
+  <div class="tab-panel" data-tab="saved">
+    <section class="panel">
+      <h2>Saved</h2>
+      <p class="sub">Anything you've kept from the generators above, across every category.</p>
+      <div class="saved-list" id="saved-list"></div>
+      <p class="empty" id="empty-saved" style="display:none;">Nothing saved yet — hit "Save" on a result you like.</p>
+    </section>
+  </div>
+
+</main>
+
+<footer>
+  Everything saves to this browser's local storage only — nothing leaves your device.
+</footer>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', ()=>{
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('oracle_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('oracle_theme', 'light');
+  }
+  updateThemeButtonIcon();
+});
+updateThemeButtonIcon();
+
+// ============================================================
+// Tabs
+// ============================================================
+function switchTab(target){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === target));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
+}
+document.getElementById('tab-bar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ============================================================
+// Word banks
+// ============================================================
+const FIRST_NAMES = [
+  'Arden','Bryn','Corwin','Delia','Ewan','Faelar','Greta','Halric','Isolde','Jorah',
+  'Kestrel','Lyra','Merrin','Nadia','Osric','Pia','Quill','Roran','Sable','Torvin',
+  'Ursa','Varek','Wren','Yara','Zale','Aldric','Bettina','Caius','Drusilla','Eamon',
+  'Fennick','Gwendolyn','Hobb','Ilsa','Jasper','Kira','Loras','Maren','Nils','Orin'
+];
+const SURNAMES = [
+  'Blackwood','Stormrider','Ashford','Nightingale','Thorne','Ravensworth','Hollowell',
+  'Ironside','Fairweather','Duskwalker','Moorland','Whitlock','Greycastle','Emberfall',
+  'Wolfsbane','Stonebridge','Larkspur','Cinderpath','Vane','Hartley','Sundermere',
+  'Blackthorn','Redgrave','Wintermoor','Silverleaf','Grimm','Fenwick','Oakhart','Marrow','Cross'
+];
+const RACES = ['Human','Elf','Dwarf','Halfling','Half-Elf','Half-Orc','Tiefling','Gnome','Dragonborn','Orc'];
+const OCCUPATIONS = [
+  'blacksmith','innkeeper','guard captain','herbalist','fortune teller','grave digger',
+  'merchant','tax collector','bounty hunter','stable hand','cartographer','scribe',
+  'fisherman','beggar','alchemist','ex-soldier','carpenter','moneylender','smuggler',
+  'town crier','midwife','gravekeeper','miller','farmer','locksmith','tailor',
+  'bard','courier','apothecary','shipwright','sailor','poacher','healer','undertaker'
+];
+const TRAITS = [
+  'Speaks only in riddles','Constantly counting coins','Never makes eye contact',
+  'Laughs at inappropriate moments','Obsessively polite','Suspicious of everyone',
+  'Always chewing something','Quotes an old proverb for everything','Terrified of dogs',
+  'Collects buttons','Whistles when nervous','Overly formal, even in casual talk',
+  'Has a pet rat named after a noble','Constantly humming','Fidgets with a coin',
+  'Speaks too loudly','Never sits down','Distrusts magic','Loves gossip',
+  'Fiercely loyal to family','Haunted by a past mistake','Secretly in debt',
+  'Believes they were meant for greatness','Terrible liar','Excellent liar'
+];
+const MOTIVATIONS = [
+  'want to leave town but can\'t afford it','are hiding from a former employer',
+  'are searching for a missing sibling','owe a dangerous debt',
+  'want revenge on a rival merchant','are secretly a spy',
+  'are trying to buy back the family home','believe a prophecy about themselves',
+  'are planning to retire somewhere warm','are protecting a dangerous secret',
+  'want to be remembered for something','are grieving a recent loss',
+  'are desperate for the party\'s help but too proud to ask directly',
+  'know something about the local lord no one else does',
+  'are trying to atone for something they did years ago'
+];
+
+const TAVERN_ADJ = [
+  'Prancing','Drunken','Golden','Rusty','Laughing','Weary','Silver','Crimson','Sleepy',
+  'Wandering','Broken','Gilded','Salty','Merry','Howling','Lucky','Faded','Cracked','Roaring','Lonely'
+];
+const TAVERN_NOUN = [
+  'Pony','Dragon','Griffin','Anchor','Boar','Kraken','Crown','Tankard','Wench','Owl',
+  'Stag','Serpent','Lantern','Wheel','Raven','Hound','Mermaid','Wyvern','Barrel','Fox'
+];
+
+const HOOK_TEMPLATES = [
+  'A {occupation} has gone missing near {place}, and the last person to see them swears they heard {sound}.',
+  'A local {occupation} is offering a reward for {item}, no questions asked.',
+  'Strange lights have been seen over {place} for three nights running.',
+  'A traveling merchant claims to have a map to {place}, but insists the party bring {item} first.',
+  'The town\'s {occupation} was found dead, and the only clue is {item} left at the scene.',
+  'A child claims to have seen {sound} coming from the old well.',
+  'A noble is secretly paying people to spread rumors about {place}.',
+  'Someone has been leaving {item} on doorsteps around town, always at night.',
+  'A {occupation} wants to hire the party to escort them to {place}, but won\'t say why.',
+  'The bridge to {place} collapsed overnight — locals whisper it wasn\'t an accident.',
+  'A letter addressed to the party arrives, warning them to stay away from {place}.',
+  'A {occupation} is offering to trade a secret for {item}.',
+  'Livestock near {place} have been found drained of blood.',
+  'An old rival resurfaces, claiming to have found {item} first.',
+  'The local temple has stopped answering prayers, and the {occupation} is desperate for answers.'
+];
+const HOOK_PLACES = ['the old mill','the abandoned keep','the forest edge','the sunken quarry','the merchant road','the sea caves','the ruined chapel','the northern hills'];
+const HOOK_SOUNDS = ['screaming','singing','chanting in an old tongue','howling','a bell tolling','laughter with no source'];
+const HOOK_ITEMS = ['a strange sigil-carved coin','an old family ring','a locked iron box','a torn page from a spellbook','a vial of glowing liquid','a bloodstained letter'];
+
+const LOOT_TABLE = {
+  Common: { weight: 50, items: ['a handful of copper pieces','a rusty dagger','a waterskin','a bundle of dried herbs','a set of loaded dice','a moth-eaten cloak','a tinderbox','a small wood carving'] },
+  Uncommon: { weight: 30, items: ['a potion of healing','a silver locket with a faded portrait','a masterwork tool kit','a scroll case with an unreadable label','a finely made shortsword','a pouch of 2d6 gold pieces'] },
+  Rare: { weight: 14, items: ['a wand with 1d4 charges remaining','a suit of enchanted leather armor','a ring that glows faintly in moonlight','a book bound in strange leather, pages blank until read aloud'] },
+  'Very Rare': { weight: 5, items: ['a cloak that grants brief invisibility once per day','a blade that hums near danger','a mirror that shows a different room each time'] },
+  Legendary: { weight: 1, items: ['a crown said to have belonged to a forgotten king','an artifact that warps nearby magic','a key that opens any lock, once'] },
+};
+
+const WEATHER = {
+  Spring: [
+    { c: 'Light rain, cool breeze', special: 'Wildflowers bloom along every roadside.' },
+    { c: 'Overcast, mild', special: null },
+    { c: 'Sudden thunderstorm', special: 'Lightning strikes a nearby tree — locals take it as an omen.' },
+    { c: 'Clear and crisp', special: null },
+    { c: 'Misty morning, clearing by midday', special: null },
+  ],
+  Summer: [
+    { c: 'Blazing heat, not a cloud in sight', special: 'Livestock refuse to leave the shade.' },
+    { c: 'Humid, distant thunder', special: null },
+    { c: 'Sudden downpour, gone within the hour', special: null },
+    { c: 'Warm with a pleasant breeze', special: null },
+    { c: 'Dry heat, dust storms possible', special: 'Wells are running low.' },
+  ],
+  Autumn: [
+    { c: 'Cold wind, falling leaves', special: null },
+    { c: 'Dense fog at dawn', special: 'Visibility is poor until midmorning.' },
+    { c: 'Grey skies, steady drizzle', special: null },
+    { c: 'Crisp and clear', special: 'A hunter\'s moon rises early tonight.' },
+    { c: 'Early frost', special: 'Crops are being harvested in a hurry.' },
+  ],
+  Winter: [
+    { c: 'Heavy snowfall', special: 'Roads may become impassable by nightfall.' },
+    { c: 'Bitter cold, clear skies', special: null },
+    { c: 'Freezing fog', special: null },
+    { c: 'Blizzard conditions', special: 'Travel is dangerous without shelter.' },
+    { c: 'Mild for the season, light snow', special: null },
+  ],
+};
+
+// ============================================================
+// Generators
+// ============================================================
+let currentResults = {}; // holds the last generated text per tab, for the Save button
+
+function fillTemplate(str){
+  const filled = str
+    .replace('{occupation}', pick(OCCUPATIONS))
+    .replace('{place}', pick(HOOK_PLACES))
+    .replace('{sound}', pick(HOOK_SOUNDS))
+    .replace('{item}', pick(HOOK_ITEMS));
+  // Fix "A" -> "An" wherever it landed in front of a vowel sound (e.g. "A innkeeper" -> "An innkeeper").
+  return filled.replace(/\bA ([AEIOUaeiou])/g, 'An $1');
+}
+
+function generateNPC(){
+  const name = `${pick(FIRST_NAMES)} ${pick(SURNAMES)}`;
+  const race = pick(RACES);
+  const occ = pick(OCCUPATIONS);
+  const trait = pick(TRAITS);
+  const motivation = pick(MOTIVATIONS);
+  const text = `${name} is a ${race} ${occ}. ${trait}. They ${motivation}.`;
+  currentResults.npc = text;
+  document.getElementById('npc-result').className = 'result-card';
+  document.getElementById('npc-result').innerHTML = `
+    <div class="result-title">${name}</div>
+    <div class="result-line">${race} ${occ}</div>
+    <div class="result-line">${trait}.</div>
+    <div class="result-line">They ${motivation}.</div>
+  `;
+}
+
+function generateTavern(){
+  const name = `The ${pick(TAVERN_ADJ)} ${pick(TAVERN_NOUN)}`;
+  currentResults.tavern = name;
+  document.getElementById('tavern-result').className = 'result-card';
+  document.getElementById('tavern-result').innerHTML = `<div class="result-title">${name}</div>`;
+}
+
+function generateHook(){
+  const text = fillTemplate(pick(HOOK_TEMPLATES));
+  currentResults.hooks = text;
+  document.getElementById('hooks-result').className = 'result-card';
+  document.getElementById('hooks-result').innerHTML = `<div class="result-line">${text}</div>`;
+}
+
+function generateLoot(){
+  const tiers = Object.keys(LOOT_TABLE);
+  const totalWeight = tiers.reduce((sum, t) => sum + LOOT_TABLE[t].weight, 0);
+  let roll = Math.random() * totalWeight;
+  let chosenTier = tiers[0];
+  for(const t of tiers){
+    if(roll < LOOT_TABLE[t].weight){ chosenTier = t; break; }
+    roll -= LOOT_TABLE[t].weight;
+  }
+  const item = pick(LOOT_TABLE[chosenTier].items);
+  const text = `${item} (${chosenTier})`;
+  currentResults.loot = text;
+  document.getElementById('loot-result').className = 'result-card';
+  document.getElementById('loot-result').innerHTML = `
+    <div class="result-line">${item.charAt(0).toUpperCase() + item.slice(1)}</div>
+    <div class="result-tag">${chosenTier}</div>
+  `;
+}
+
+function generateWeather(){
+  const season = document.getElementById('weather-season').value;
+  const w = pick(WEATHER[season]);
+  const text = `${season}: ${w.c}${w.special ? ' — ' + w.special : ''}`;
+  currentResults.weather = text;
+  document.getElementById('weather-result').className = 'result-card';
+  document.getElementById('weather-result').innerHTML = `
+    <div class="result-title">${w.c}</div>
+    ${w.special ? `<div class="result-line">${w.special}</div>` : ''}
+    <div class="result-tag">${season}</div>
+  `;
+}
+
+document.getElementById('npc-generate-btn').addEventListener('click', generateNPC);
+document.getElementById('tavern-generate-btn').addEventListener('click', generateTavern);
+document.getElementById('hooks-generate-btn').addEventListener('click', generateHook);
+document.getElementById('loot-generate-btn').addEventListener('click', generateLoot);
+document.getElementById('weather-generate-btn').addEventListener('click', generateWeather);
+
+// ============================================================
+// Saved
+// ============================================================
+let saved = JSON.parse(localStorage.getItem('oracle_saved') || '[]');
+
+function renderSaved(){
+  const list = document.getElementById('saved-list');
+  const emptyMsg = document.getElementById('empty-saved');
+  list.innerHTML = '';
+  if(saved.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  [...saved].reverse().forEach(entry=>{
+    const realIdx = saved.indexOf(entry);
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    card.innerHTML = `
+      <div class="saved-head">
+        <div>
+          <span class="saved-tag">${entry.type}</span>
+          <div class="saved-text">${entry.text}</div>
+        </div>
+        <button type="button" class="btn-small btn-danger">✕</button>
+      </div>
+    `;
+    card.querySelector('button').addEventListener('click', ()=>{
+      saved.splice(realIdx, 1);
+      localStorage.setItem('oracle_saved', JSON.stringify(saved));
+      renderSaved();
+    });
+    list.appendChild(card);
+  });
+}
+
+function saveResult(type){
+  const text = currentResults[type];
+  if(!text){ alert('Generate one first.'); return; }
+  saved.push({ type, text });
+  localStorage.setItem('oracle_saved', JSON.stringify(saved));
+  renderSaved();
+}
+
+document.getElementById('npc-save-btn').addEventListener('click', ()=> saveResult('npc'));
+document.getElementById('tavern-save-btn').addEventListener('click', ()=> saveResult('tavern'));
+document.getElementById('hooks-save-btn').addEventListener('click', ()=> saveResult('hooks'));
+document.getElementById('loot-save-btn').addEventListener('click', ()=> saveResult('loot'));
+document.getElementById('weather-save-btn').addEventListener('click', ()=> saveResult('weather'));
+
+renderSaved();
+</script>
+</body>
+</html>
