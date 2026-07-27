@@ -367,6 +367,11 @@
   .theme-toggle-btn:hover{ border-color:var(--amber); }
   .theme-toggle-btn:active{ transform:scale(.94); }
 </style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#ff2f9e">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 
@@ -384,7 +389,7 @@
 
 <header>
   <div class="header-top-row">
-    <a class="back-link" href="../../index.html">← Apps</a>
+    <a class="back-link" href="../../index.html">← Portfolio</a>
     <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">🌙</button>
   </div>
   <p class="eyebrow">// personal measurement log</p>
@@ -1024,6 +1029,13 @@ function renderChart(){
 }
 
 render();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
