@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backup — All Apps</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('backup_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html{ touch-action:manipulation; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --bg:#0a0509;
+    --card:#160d15;
+    --card-2:#1c1119;
+    --border:#3a1a30;
+    --text:#ffffff;
+    --sub:#c3aebb;
+    --muted:#8b7a86;
+    --accent:#ff2f9e;
+    --accent-2:#ff8ad1;
+    --green:#6fcf97;
+    --red:#e0725c;
+    --glow-1:rgba(255,47,158,0.14);
+    --glow-2:rgba(255,138,209,0.08);
+  }
+  [data-theme="light"]{
+    --bg:#fdf7fa;
+    --card:#ffffff;
+    --card-2:#f7ecf3;
+    --border:#e8d2e0;
+    --text:#241019;
+    --sub:#6b4f5e;
+    --muted:#9b8290;
+    --accent:#e0227f;
+    --accent-2:#c93d8f;
+    --green:#2f9e5f;
+    --red:#c94f36;
+    --glow-1:rgba(224,34,127,0.08);
+    --glow-2:rgba(201,61,143,0.05);
+  }
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    transition:background-color .2s ease, color .2s ease;
+  }
+
+  header{ max-width:760px; margin:0 auto; padding:36px 24px 20px; }
+  .header-top-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; color:var(--muted); text-decoration:none;
+    font-size:13px; font-weight:600; transition:color .15s ease;
+  }
+  .back-link:hover{ color:var(--accent-2); }
+  .theme-toggle-btn{
+    width:auto; margin:0; padding:8px 10px; background:var(--card-2); border:1px solid var(--border);
+    border-radius:8px; font-size:14px; line-height:1; cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
+
+  .eyebrow{
+    font-size:.75rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+    margin-bottom:10px;
+    background:linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  h1{ font-size:2rem; font-weight:800; margin-bottom:8px; }
+  header p{ color:var(--sub); max-width:60ch; font-size:15px; line-height:1.6; }
+
+  main{ max-width:760px; margin:0 auto; padding:0 24px 80px; display:grid; gap:20px; }
+
+  .panel{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+  .panel h2{ font-size:18px; font-weight:700; margin-bottom:6px; }
+  .panel .sub{ color:var(--muted); font-size:13px; margin-bottom:18px; }
+
+  .app-summary{ display:grid; gap:8px; margin-bottom:20px; }
+  .app-summary-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 14px; font-size:14px;
+  }
+  .app-summary-row .name{ font-weight:600; }
+  .app-summary-row .count{ font-family:monospace; color:var(--muted); font-size:12px; }
+
+  button{
+    font-family:'Inter', sans-serif; font-weight:700; font-size:14px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#1a0512; border:none; border-radius:8px; padding:12px 22px;
+    cursor:pointer; transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:scale(.96); }
+  button.btn-ghost{ background:var(--card-2); color:var(--text); border:1px solid var(--border); }
+
+  input[type="file"]{
+    display:block; width:100%; color:var(--sub); font-size:13px; margin-bottom:14px;
+  }
+
+  .empty{ color:var(--muted); font-size:14px; padding:16px 0; text-align:center; }
+  .warning{
+    background:rgba(224,34,127,0.08); border:1px solid var(--accent); border-radius:8px;
+    padding:12px 14px; font-size:13px; color:var(--sub); margin-bottom:16px;
+  }
+
+  footer{ max-width:760px; margin:0 auto; padding:0 24px 60px; color:var(--muted); font-size:12px; }
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#ff2f9e">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<header>
+  <div class="header-top-row">
+    <a class="back-link" href="../index.html">← Apps</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">☀️</button>
+  </div>
+  <p class="eyebrow">// one backup, everything</p>
+  <h1>Backup &amp; Restore</h1>
+  <p>
+    Every app on this site saves to your browser's local storage, all under the same domain —
+    which means one backup here covers everything at once: Caliper, Ironclad, Grimoire, Oracle,
+    Ledger, Streaks, high scores, theme preferences, all of it.
+  </p>
+</header>
+
+<main>
+
+  <section class="panel">
+    <h2>What's here right now</h2>
+    <p class="sub">Detected on this browser, this device.</p>
+    <div class="app-summary" id="app-summary"></div>
+    <p class="empty" id="empty-summary" style="display:none;">Nothing saved yet on this browser.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Export</h2>
+    <p class="sub">Downloads everything above as one JSON file you can keep safe or move to another device/browser.</p>
+    <button type="button" id="export-btn">⬇ Download Full Backup</button>
+  </section>
+
+  <section class="panel">
+    <h2>Restore</h2>
+    <p class="sub">Load a backup file exported from this same site.</p>
+    <div class="warning">This overwrites any matching data already saved in this browser — export a fresh backup first if you want to keep what's currently here.</div>
+    <input type="file" id="import-file" accept="application/json">
+    <button type="button" class="btn-ghost" id="import-btn">Restore from File</button>
+  </section>
+
+</main>
+
+<footer>
+  Nothing here ever leaves your device unless you choose to download or share the backup file yourself.
+</footer>
+
+<script>
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', ()=>{
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('backup_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('backup_theme', 'light');
+  }
+  updateThemeButtonIcon();
+});
+updateThemeButtonIcon();
+
+// Keys that are transient auth tokens, not meaningful "data" — excluded from backups
+// on purpose, since a stale/expired token in an exported file isn't useful and there's
+// no reason to have it sit in a downloadable file.
+function isExcludedKey(key){
+  return key.includes('_google_session') || key === 'backup_theme';
+}
+
+const APP_LABELS = {
+  caliper: 'Caliper',
+  ironlog: 'Ironclad',
+  ironclad: 'Ironclad',
+  macromate: 'MacroMate',
+  grimoire: 'Grimoire',
+  oracle: 'Oracle',
+  ledger: 'Ledger',
+  streaks: 'Streaks',
+  snake: 'Snake',
+  '2048': '2048',
+};
+
+function labelForKey(key){
+  const prefix = key.split('_')[0];
+  return APP_LABELS[prefix] || (prefix.charAt(0).toUpperCase() + prefix.slice(1));
+}
+
+function getAllBackupableKeys(){
+  return Object.keys(localStorage).filter(k => !isExcludedKey(k));
+}
+
+function renderSummary(){
+  const keys = getAllBackupableKeys();
+  const wrap = document.getElementById('app-summary');
+  const emptyMsg = document.getElementById('empty-summary');
+  wrap.innerHTML = '';
+
+  if(keys.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  const grouped = {};
+  keys.forEach(k=>{
+    const label = labelForKey(k);
+    grouped[label] = (grouped[label] || 0) + 1;
+  });
+
+  Object.keys(grouped).sort().forEach(label=>{
+    const row = document.createElement('div');
+    row.className = 'app-summary-row';
+    row.innerHTML = `<span class="name">${label}</span><span class="count">${grouped[label]} key${grouped[label]!==1?'s':''}</span>`;
+    wrap.appendChild(row);
+  });
+}
+
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const keys = getAllBackupableKeys();
+  if(keys.length === 0){
+    alert('Nothing to back up yet — use some of the apps first.');
+    return;
+  }
+  const data = {};
+  keys.forEach(k => data[k] = localStorage.getItem(k));
+  const backup = { exportedAt: new Date().toISOString(), data };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `site-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('import-btn').addEventListener('click', ()=>{
+  const fileInput = document.getElementById('import-file');
+  const file = fileInput.files[0];
+  if(!file){
+    alert('Choose a backup file first.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      const data = parsed.data || parsed; // tolerate a raw {key:value} file too
+      const keys = Object.keys(data);
+      if(keys.length === 0){
+        alert('That file has nothing in it.');
+        return;
+      }
+      if(!confirm(`Restore ${keys.length} item(s)? This overwrites any matching data already in this browser.`)) return;
+      keys.forEach(k => localStorage.setItem(k, data[k]));
+      alert(`Restored ${keys.length} item(s). Reloading…`);
+      location.reload();
+    }catch(err){
+      alert('Could not read that file — expected a backup exported from this site.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+renderSummary();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
