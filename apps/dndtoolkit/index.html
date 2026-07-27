@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grimoire — D&D Toolkit</title>
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('grimoire_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html{ touch-action:manipulation; }
+  :root{
+    --bg:#1a120b;
+    --card:#2a1d12;
+    --card-2:#332417;
+    --border:#5a4527;
+    --text:#f0e6d2;
+    --sub:#c9b896;
+    --muted:#8a7a5f;
+    --accent:#a6291f;
+    --accent-2:#c9a227;
+    --green:#5a9e5f;
+    --red:#c9422f;
+    --glow-1:rgba(201,162,39,0.10);
+    --glow-2:rgba(166,41,31,0.10);
+  }
+  [data-theme="light"]{
+    --bg:#f3e9d2;
+    --card:#fbf4e3;
+    --card-2:#ecdfc0;
+    --border:#c9ab6f;
+    --text:#2e2013;
+    --sub:#5a462c;
+    --muted:#8a7a5f;
+    --accent:#a6291f;
+    --accent-2:#8a6a12;
+    --green:#3f7a44;
+    --red:#a6291f;
+    --glow-1:rgba(201,162,39,0.08);
+    --glow-2:rgba(166,41,31,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'EB Garamond', serif;
+    -webkit-font-smoothing:antialiased;
+    transition:background-color .2s ease, color .2s ease;
+  }
+  ::selection{ background:var(--accent-2); color:#1a120b; }
+
+  header{
+    max-width:1000px;
+    margin:0 auto;
+    padding:36px 24px 20px;
+  }
+  .header-top-row{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--muted); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.04em;
+    transition:color .15s ease;
+  }
+  .back-link:hover{ color:var(--accent-2); }
+  .theme-toggle-btn{
+    width:auto; margin:0; padding:8px 10px;
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
+    font-size:14px; line-height:1; cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent-2); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--accent-2); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Cinzel', serif;
+    font-weight:900;
+    font-size:clamp(38px,7vw,58px);
+    letter-spacing:.03em;
+    margin:0 0 8px;
+    color:var(--text);
+    text-shadow:0 0 24px var(--glow-2);
+  }
+  header p{ color:var(--sub); max-width:60ch; margin:0; font-size:16px; font-style:italic; }
+
+  main{ max-width:1000px; margin:0 auto; padding:0 24px 80px; }
+
+  .tab-bar{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
+    border-bottom:1px solid var(--border); margin-bottom:24px;
+  }
+  .tab-btn{
+    font-family:'Cinzel', serif; font-weight:600; font-size:14px;
+    background:transparent; color:var(--muted); border:none;
+    border-bottom:2px solid transparent; padding:10px 16px; cursor:pointer;
+    white-space:nowrap; transition:color .15s ease, border-color .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.active{ color:var(--accent-2); border-bottom-color:var(--accent-2); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:grid; gap:20px; }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:24px;
+  }
+  .panel h2{
+    font-family:'Cinzel', serif; font-size:22px; font-weight:700;
+    margin:0 0 4px; color:var(--accent-2);
+  }
+  .panel .sub{ color:var(--muted); font-size:14px; margin:0 0 18px; font-style:italic; }
+
+  label{
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); display:block; margin-bottom:5px;
+  }
+  input, select, textarea{
+    background:var(--card-2); border:1px solid var(--border); border-radius:6px;
+    padding:10px 10px; color:var(--text); font-family:'EB Garamond', serif;
+    font-size:16px; width:100%;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:2px solid var(--accent-2); outline-offset:1px; border-color:var(--accent-2);
+  }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+
+  button{
+    font-family:'Cinzel', serif; font-weight:600; font-size:14px;
+    background:linear-gradient(135deg, var(--accent), #7a1d16);
+    color:#f5e9d8; border:none; border-radius:8px; padding:11px 20px;
+    cursor:pointer; transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.12); }
+  button:active{ transform:scale(.96); }
+  button.btn-ghost{
+    background:var(--card-2); color:var(--text); border:1px solid var(--border);
+  }
+  button.btn-danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  button.btn-small{ padding:8px 14px; font-size:12px; min-height:36px; }
+
+  /* --- dice roller --- */
+  .die-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr));
+    gap:10px; margin-bottom:20px;
+  }
+  .die-btn{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    background:var(--card-2); border:2px solid var(--border); border-radius:12px;
+    font-family:'Cinzel', serif; font-weight:700; font-size:18px; color:var(--text);
+    cursor:pointer; transition:border-color .15s ease, transform .08s ease;
+  }
+  .die-btn:hover{ border-color:var(--accent-2); }
+  .die-btn:active{ transform:scale(.94); }
+
+  .roll-controls{
+    display:flex; gap:12px; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .roll-controls .field{ min-width:100px; }
+  .adv-row{ display:flex; gap:8px; margin-bottom:20px; }
+  .pill{
+    font-family:'Cinzel', serif; font-size:13px; font-weight:600;
+    background:var(--card-2); color:var(--muted); border:2px solid var(--border);
+    border-radius:20px; padding:9px 18px; cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .pill:hover{ color:var(--text); }
+  .pill.active{ border-color:var(--accent-2); color:var(--accent-2); }
+
+  .result-display{
+    background:var(--card-2); border:2px solid var(--accent-2); border-radius:12px;
+    padding:24px; text-align:center; margin-bottom:20px;
+  }
+  .result-total{
+    font-family:'Cinzel', serif; font-weight:900; font-size:56px; color:var(--accent-2);
+    line-height:1;
+  }
+  .result-breakdown{ color:var(--sub); font-size:14px; margin-top:8px; font-family:'JetBrains Mono',monospace; }
+
+  .history-list{ max-height:240px; overflow-y:auto; }
+  .history-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 12px; border-bottom:1px solid var(--border); font-size:14px;
+  }
+  .history-item .formula{ color:var(--sub); font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .history-item .total{ font-family:'Cinzel', serif; font-weight:700; color:var(--accent-2); font-size:18px; }
+
+  /* --- character info grid, reused by the roster's add-entry form --- */
+  .char-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; margin-bottom:20px; }
+
+  /* --- roster --- */
+  .roster-card{
+    background:var(--card-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px 18px; margin-bottom:10px;
+  }
+  .roster-card-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .roster-card-name{ font-family:'Cinzel',serif; font-weight:700; font-size:17px; color:var(--accent-2); }
+  .roster-card-type{
+    font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); border:1px solid var(--border);
+    border-radius:12px; padding:2px 8px; margin-left:8px;
+  }
+  .roster-card-stats{
+    display:flex; gap:16px; font-family:'JetBrains Mono',monospace; font-size:13px;
+    color:var(--sub); margin-top:6px;
+  }
+  .roster-card-notes{ color:var(--sub); font-size:14px; margin-top:8px; white-space:pre-wrap; }
+  .roster-card-actions{ display:flex; gap:8px; margin-top:10px; }
+
+  /* --- initiative tracker --- */
+  .add-combatant-row{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; align-items:flex-end; }
+  .add-combatant-row .field{ flex:1; min-width:100px; }
+  .round-counter{
+    font-family:'Cinzel',serif; font-size:16px; color:var(--accent-2); margin-bottom:14px; font-weight:700;
+  }
+  .combatant-card{
+    display:flex; align-items:center; gap:12px; padding:12px 16px;
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px;
+  }
+  .combatant-card.current-turn{ border-color:var(--accent-2); box-shadow:0 0 0 2px var(--accent-2) inset; }
+  .combatant-card .init-val{
+    font-family:'Cinzel',serif; font-weight:900; font-size:22px; color:var(--accent-2); min-width:36px; text-align:center;
+  }
+  .combatant-card .name{ flex:1; font-weight:600; }
+  .combatant-card .hp-controls{ display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:13px; }
+  .combatant-card .hp-controls input{ width:50px; text-align:center; padding:6px 4px; }
+
+  /* --- notes --- */
+  .note-entry{
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .note-entry .note-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .note-entry .note-title{ font-family:'Cinzel',serif; font-weight:700; color:var(--accent-2); }
+  .note-entry .note-date{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); }
+  .note-entry .note-body{ white-space:pre-wrap; font-size:15px; color:var(--sub); }
+
+  .empty{ color:var(--muted); font-size:14px; padding:24px 0; text-align:center; font-style:italic; }
+
+  footer{ max-width:1000px; margin:0 auto; padding:0 24px 60px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Apps</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">☀️</button>
+  </div>
+  <p class="eyebrow">// dungeon master's companion</p>
+  <h1>GRIMOIRE</h1>
+  <p>Dice, an NPC & monster roster, initiative tracker, and campaign notes — everything for running the table.</p>
+</header>
+
+<main>
+
+  <div class="tab-bar" id="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="dice">Dice</button>
+    <button type="button" class="tab-btn" data-tab="roster">Roster</button>
+    <button type="button" class="tab-btn" data-tab="initiative">Initiative</button>
+    <button type="button" class="tab-btn" data-tab="notes">Notes</button>
+  </div>
+
+  <!-- DICE -->
+  <div class="tab-panel active" data-tab="dice">
+    <section class="panel">
+      <h2>Roll the Bones</h2>
+      <p class="sub">Tap a die for a quick roll, or set quantity/modifier for something bigger.</p>
+
+      <div class="die-grid">
+        <div class="die-btn" data-sides="4">d4</div>
+        <div class="die-btn" data-sides="6">d6</div>
+        <div class="die-btn" data-sides="8">d8</div>
+        <div class="die-btn" data-sides="10">d10</div>
+        <div class="die-btn" data-sides="12">d12</div>
+        <div class="die-btn" data-sides="20">d20</div>
+        <div class="die-btn" data-sides="100">d100</div>
+      </div>
+
+      <div class="roll-controls">
+        <div class="field">
+          <label for="dice-qty">Quantity</label>
+          <input type="number" id="dice-qty" value="1" min="1" max="20">
+        </div>
+        <div class="field">
+          <label for="dice-sides">Die</label>
+          <select id="dice-sides">
+            <option value="4">d4</option>
+            <option value="6">d6</option>
+            <option value="8">d8</option>
+            <option value="10">d10</option>
+            <option value="12">d12</option>
+            <option value="20" selected>d20</option>
+            <option value="100">d100</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="dice-mod">Modifier</label>
+          <input type="number" id="dice-mod" value="0">
+        </div>
+        <button type="button" id="roll-custom-btn">Roll</button>
+      </div>
+
+      <div class="field" style="margin-bottom:16px;">
+        <label for="dice-formula">Or type a formula</label>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="dice-formula" placeholder="e.g. 2d6+3">
+          <button type="button" id="roll-formula-btn" class="btn-ghost">Roll</button>
+        </div>
+      </div>
+
+      <div class="adv-row">
+        <button type="button" class="pill" id="adv-btn">Advantage (d20)</button>
+        <button type="button" class="pill" id="disadv-btn">Disadvantage (d20)</button>
+      </div>
+
+      <div class="result-display" id="result-display" style="display:none;">
+        <div class="result-total" id="result-total">—</div>
+        <div class="result-breakdown" id="result-breakdown"></div>
+      </div>
+
+      <h2 style="font-size:16px; margin-top:10px;">Roll History</h2>
+      <div class="history-list" id="history-list"></div>
+      <p class="empty" id="empty-history" style="display:none;">No rolls yet — give the dice a shake.</p>
+    </section>
+  </div>
+
+  <!-- CHARACTER -->
+  <div class="tab-panel" data-tab="roster">
+    <section class="panel">
+      <h2>NPC &amp; Monster Roster</h2>
+      <p class="sub">Save the NPCs and monsters you reuse, and drop them straight into a fight when combat starts.</p>
+
+      <div class="char-grid" style="margin-bottom:14px;">
+        <div class="field"><label for="ros-name">Name</label><input type="text" id="ros-name" placeholder="Goblin Boss"></div>
+        <div class="field">
+          <label for="ros-type">Type</label>
+          <select id="ros-type">
+            <option value="Monster">Monster</option>
+            <option value="NPC">NPC</option>
+            <option value="Ally">Ally</option>
+          </select>
+        </div>
+        <div class="field"><label for="ros-hp">HP</label><input type="number" id="ros-hp" placeholder="21"></div>
+        <div class="field"><label for="ros-ac">AC</label><input type="number" id="ros-ac" placeholder="17"></div>
+        <div class="field"><label for="ros-init">Init Bonus</label><input type="number" id="ros-init" placeholder="2"></div>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="ros-notes">Stat block / notes</label>
+        <textarea id="ros-notes" rows="3" placeholder="Attacks, abilities, tactics, description..."></textarea>
+      </div>
+      <button type="button" id="add-roster-btn" style="margin-bottom:24px;">Save to Roster</button>
+
+      <div id="roster-list"></div>
+      <p class="empty" id="empty-roster" style="display:none;">No one saved yet — add your first NPC or monster above.</p>
+    </section>
+  </div>
+
+  <!-- INITIATIVE -->
+  <div class="tab-panel" data-tab="initiative">
+    <section class="panel">
+      <h2>Initiative Tracker</h2>
+      <p class="sub">Add everyone in the fight, then step through turns in order.</p>
+
+      <div class="add-combatant-row">
+        <div class="field"><label for="init-name">Name</label><input type="text" id="init-name" placeholder="Goblin #1"></div>
+        <div class="field" style="max-width:100px;"><label for="init-roll">Initiative</label><input type="number" id="init-roll" placeholder="15"></div>
+        <div class="field" style="max-width:100px;"><label for="init-hp">HP</label><input type="number" id="init-hp" placeholder="7"></div>
+        <div class="field" style="max-width:100px;"><label for="init-ac">AC</label><input type="number" id="init-ac" placeholder="13"></div>
+        <button type="button" id="add-combatant-btn">Add</button>
+      </div>
+
+      <div class="round-counter">Round <span id="round-num">1</span></div>
+
+      <div style="display:flex; gap:10px; margin-bottom:18px;">
+        <button type="button" id="next-turn-btn">Next Turn ▶</button>
+        <button type="button" class="btn-ghost" id="clear-encounter-btn">New Encounter</button>
+      </div>
+
+      <div id="combatant-list"></div>
+      <p class="empty" id="empty-initiative" style="display:none;">No combatants yet — add someone above.</p>
+    </section>
+  </div>
+
+  <!-- NOTES -->
+  <div class="tab-panel" data-tab="notes">
+    <section class="panel">
+      <h2>Campaign Notes</h2>
+      <p class="sub">Session logs, NPC names, plot threads — whatever you need to remember.</p>
+
+      <div class="field" style="margin-bottom:10px;">
+        <label for="note-title">Entry title</label>
+        <input type="text" id="note-title" placeholder="Session 12 — The Sunken Keep">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="note-body">Notes</label>
+        <textarea id="note-body" rows="4" placeholder="What happened, who we met, what's next..."></textarea>
+      </div>
+      <button type="button" id="add-note-btn" style="margin-bottom:20px;">Save Entry</button>
+
+      <div id="notes-list"></div>
+      <p class="empty" id="empty-notes" style="display:none;">No entries yet — log your first session above.</p>
+    </section>
+  </div>
+
+</main>
+
+<footer>
+  Everything here saves to this browser's local storage only — nothing leaves your device.
+</footer>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', ()=>{
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('grimoire_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('grimoire_theme', 'light');
+  }
+  updateThemeButtonIcon();
+});
+updateThemeButtonIcon();
+
+// ============================================================
+// Tabs
+// ============================================================
+function switchTab(target){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === target));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
+}
+document.getElementById('tab-bar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+// ============================================================
+// Dice Roller
+// ============================================================
+let rollHistory = JSON.parse(localStorage.getItem('grimoire_history') || '[]');
+
+function rollDie(sides){ return Math.floor(Math.random()*sides)+1; }
+
+function parseFormula(formula){
+  const match = formula.trim().toLowerCase().match(/^(\d*)d(\d+)([+-]\d+)?$/);
+  if(!match) return null;
+  const count = match[1] ? parseInt(match[1]) : 1;
+  const sides = parseInt(match[2]);
+  const modifier = match[3] ? parseInt(match[3]) : 0;
+  if(count < 1 || count > 100 || sides < 2) return null;
+  return { count, sides, modifier };
+}
+
+function doRoll(count, sides, modifier, label){
+  const rolls = [];
+  for(let i=0;i<count;i++) rolls.push(rollDie(sides));
+  const total = rolls.reduce((a,b)=>a+b,0) + modifier;
+  showResult(rolls, modifier, total, label || `${count}d${sides}${modifier?(modifier>0?'+':'')+modifier:''}`);
+  addToHistory(label || `${count}d${sides}${modifier?(modifier>0?'+':'')+modifier:''}`, rolls.join(', '), total);
+}
+
+function doAdvantageRoll(mode){
+  const a = rollDie(20), b = rollDie(20);
+  const total = mode === 'adv' ? Math.max(a,b) : Math.min(a,b);
+  const label = mode === 'adv' ? 'Advantage' : 'Disadvantage';
+  showResult([a,b], 0, total, label, mode === 'adv' ? Math.max(a,b) : Math.min(a,b));
+  addToHistory(label, `${a}, ${b} → kept ${total}`, total);
+}
+
+function showResult(rolls, modifier, total, label, keep){
+  const display = document.getElementById('result-display');
+  display.style.display = 'block';
+  document.getElementById('result-total').textContent = total;
+  let breakdown = `${label}: [${rolls.join(', ')}]`;
+  if(modifier) breakdown += ` ${modifier > 0 ? '+' : ''}${modifier}`;
+  document.getElementById('result-breakdown').textContent = breakdown;
+}
+
+function addToHistory(label, detail, total){
+  rollHistory.unshift({ label, detail, total, time: Date.now() });
+  rollHistory = rollHistory.slice(0, 30);
+  localStorage.setItem('grimoire_history', JSON.stringify(rollHistory));
+  renderHistory();
+}
+
+function renderHistory(){
+  const list = document.getElementById('history-list');
+  const emptyMsg = document.getElementById('empty-history');
+  list.innerHTML = '';
+  if(rollHistory.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  rollHistory.forEach(h=>{
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    row.innerHTML = `
+      <div>
+        <div>${h.label}</div>
+        <div class="formula">${h.detail}</div>
+      </div>
+      <div class="total">${h.total}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+document.querySelectorAll('.die-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> doRoll(1, parseInt(btn.dataset.sides), 0));
+});
+document.getElementById('roll-custom-btn').addEventListener('click', ()=>{
+  const qty = parseInt(document.getElementById('dice-qty').value) || 1;
+  const sides = parseInt(document.getElementById('dice-sides').value);
+  const mod = parseInt(document.getElementById('dice-mod').value) || 0;
+  doRoll(Math.min(Math.max(qty,1),20), sides, mod);
+});
+document.getElementById('roll-formula-btn').addEventListener('click', ()=>{
+  const input = document.getElementById('dice-formula');
+  const parsed = parseFormula(input.value);
+  if(!parsed){
+    alert('Enter a valid formula like "2d6+3" or "d20".');
+    return;
+  }
+  doRoll(parsed.count, parsed.sides, parsed.modifier, input.value.trim());
+});
+document.getElementById('dice-formula').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('roll-formula-btn').click();
+});
+document.getElementById('adv-btn').addEventListener('click', ()=> doAdvantageRoll('adv'));
+document.getElementById('disadv-btn').addEventListener('click', ()=> doAdvantageRoll('disadv'));
+
+renderHistory();
+
+// ============================================================
+// NPC & Monster Roster
+// ============================================================
+let roster = JSON.parse(localStorage.getItem('grimoire_roster') || '[]');
+
+function saveRoster(){
+  localStorage.setItem('grimoire_roster', JSON.stringify(roster));
+}
+
+function renderRoster(){
+  const list = document.getElementById('roster-list');
+  const emptyMsg = document.getElementById('empty-roster');
+  list.innerHTML = '';
+  if(roster.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  roster.forEach(entry=>{
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    const stats = [];
+    if(entry.hp !== undefined) stats.push(`HP ${entry.hp}`);
+    if(entry.ac !== undefined) stats.push(`AC ${entry.ac}`);
+    if(entry.initBonus !== undefined) stats.push(`Init ${entry.initBonus >= 0 ? '+' : ''}${entry.initBonus}`);
+    card.innerHTML = `
+      <div class="roster-card-head">
+        <div><span class="roster-card-name">${entry.name}</span><span class="roster-card-type">${entry.type}</span></div>
+      </div>
+      ${stats.length ? `<div class="roster-card-stats">${stats.join(' · ')}</div>` : ''}
+      ${entry.notes ? `<div class="roster-card-notes">${entry.notes}</div>` : ''}
+      <div class="roster-card-actions">
+        <button type="button" class="btn-small add-to-init-btn">Add to Initiative</button>
+        <button type="button" class="btn-small btn-danger delete-roster-btn">Delete</button>
+      </div>
+    `;
+    card.querySelector('.add-to-init-btn').addEventListener('click', ()=> addRosterEntryToInitiative(entry));
+    card.querySelector('.delete-roster-btn').addEventListener('click', ()=>{
+      roster = roster.filter(r => r.id !== entry.id);
+      saveRoster();
+      renderRoster();
+    });
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('add-roster-btn').addEventListener('click', ()=>{
+  const name = document.getElementById('ros-name').value.trim();
+  if(!name){ alert('Give them a name first.'); return; }
+  const entry = {
+    id: 'r_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    name,
+    type: document.getElementById('ros-type').value,
+    hp: document.getElementById('ros-hp').value ? parseInt(document.getElementById('ros-hp').value) : undefined,
+    ac: document.getElementById('ros-ac').value ? parseInt(document.getElementById('ros-ac').value) : undefined,
+    initBonus: document.getElementById('ros-init').value ? parseInt(document.getElementById('ros-init').value) : undefined,
+    notes: document.getElementById('ros-notes').value.trim(),
+  };
+  roster.push(entry);
+  saveRoster();
+  renderRoster();
+  ['ros-name','ros-hp','ros-ac','ros-init','ros-notes'].forEach(id => document.getElementById(id).value = '');
+});
+
+// Rolls initiative (1d20 + their bonus, if any) and drops this roster entry straight
+// into the Initiative tab as a live combatant — the whole point of keeping a roster.
+function addRosterEntryToInitiative(entry){
+  const bonus = entry.initBonus || 0;
+  const roll = rollDie(20) + bonus;
+  combatants.push({ name: entry.name, initiative: roll, hp: entry.hp, ac: entry.ac });
+  combatants.sort((a,b)=> b.initiative - a.initiative);
+  saveInitiativeState();
+  renderInitiative();
+  switchTab('initiative');
+}
+
+renderRoster();
+
+// ============================================================
+// Initiative Tracker
+// ============================================================
+let combatants = JSON.parse(localStorage.getItem('grimoire_initiative') || '[]');
+let currentTurnIndex = 0;
+let roundNum = parseInt(localStorage.getItem('grimoire_round') || '1');
+
+function saveInitiativeState(){
+  localStorage.setItem('grimoire_initiative', JSON.stringify(combatants));
+  localStorage.setItem('grimoire_round', String(roundNum));
+}
+
+function renderInitiative(){
+  const list = document.getElementById('combatant-list');
+  const emptyMsg = document.getElementById('empty-initiative');
+  document.getElementById('round-num').textContent = roundNum;
+  list.innerHTML = '';
+  if(combatants.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  combatants.forEach((c, i)=>{
+    const card = document.createElement('div');
+    card.className = 'combatant-card' + (i === currentTurnIndex ? ' current-turn' : '');
+    card.innerHTML = `
+      <div class="init-val">${c.initiative}</div>
+      <div class="name">${c.name}${c.ac ? ` <span style="color:var(--muted); font-size:12px;">AC ${c.ac}</span>` : ''}</div>
+      <div class="hp-controls">
+        <button type="button" class="btn-small btn-ghost hp-minus">−</button>
+        <input type="number" class="hp-input" value="${c.hp ?? ''}" placeholder="HP">
+        <button type="button" class="btn-small btn-ghost hp-plus">+</button>
+      </div>
+      <button type="button" class="btn-small btn-danger remove-combatant">✕</button>
+    `;
+    card.querySelector('.hp-minus').addEventListener('click', ()=>{ c.hp = (c.hp ?? 0) - 1; saveInitiativeState(); renderInitiative(); });
+    card.querySelector('.hp-plus').addEventListener('click', ()=>{ c.hp = (c.hp ?? 0) + 1; saveInitiativeState(); renderInitiative(); });
+    card.querySelector('.hp-input').addEventListener('change', (e)=>{ c.hp = parseInt(e.target.value) || 0; saveInitiativeState(); });
+    card.querySelector('.remove-combatant').addEventListener('click', ()=>{
+      const removedIdx = i;
+      combatants.splice(i,1);
+      if(currentTurnIndex > removedIdx) currentTurnIndex--;
+      if(currentTurnIndex >= combatants.length) currentTurnIndex = 0;
+      saveInitiativeState();
+      renderInitiative();
+    });
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('add-combatant-btn').addEventListener('click', ()=>{
+  const name = document.getElementById('init-name').value.trim();
+  const initiative = parseInt(document.getElementById('init-roll').value);
+  if(!name || isNaN(initiative)){
+    alert('Enter a name and an initiative value.');
+    return;
+  }
+  const hp = document.getElementById('init-hp').value ? parseInt(document.getElementById('init-hp').value) : undefined;
+  const ac = document.getElementById('init-ac').value ? parseInt(document.getElementById('init-ac').value) : undefined;
+  combatants.push({ name, initiative, hp, ac });
+  combatants.sort((a,b)=> b.initiative - a.initiative);
+  saveInitiativeState();
+  renderInitiative();
+  document.getElementById('init-name').value = '';
+  document.getElementById('init-roll').value = '';
+  document.getElementById('init-hp').value = '';
+  document.getElementById('init-ac').value = '';
+});
+
+document.getElementById('next-turn-btn').addEventListener('click', ()=>{
+  if(combatants.length === 0) return;
+  currentTurnIndex++;
+  if(currentTurnIndex >= combatants.length){
+    currentTurnIndex = 0;
+    roundNum++;
+  }
+  saveInitiativeState();
+  renderInitiative();
+});
+
+document.getElementById('clear-encounter-btn').addEventListener('click', ()=>{
+  if(combatants.length > 0 && !confirm('Clear all combatants and start a new encounter?')) return;
+  combatants = [];
+  currentTurnIndex = 0;
+  roundNum = 1;
+  saveInitiativeState();
+  renderInitiative();
+});
+
+renderInitiative();
+
+// ============================================================
+// Campaign Notes
+// ============================================================
+let notes = JSON.parse(localStorage.getItem('grimoire_notes') || '[]');
+
+function renderNotes(){
+  const list = document.getElementById('notes-list');
+  const emptyMsg = document.getElementById('empty-notes');
+  list.innerHTML = '';
+  if(notes.length === 0){
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  [...notes].reverse().forEach((n)=>{
+    const realIdx = notes.indexOf(n);
+    const entry = document.createElement('div');
+    entry.className = 'note-entry';
+    entry.innerHTML = `
+      <div class="note-head">
+        <div class="note-title">${n.title}</div>
+        <div class="note-date">${n.date}</div>
+      </div>
+      <div class="note-body">${n.body}</div>
+      <button type="button" class="btn-small btn-danger" style="margin-top:10px;">Delete</button>
+    `;
+    entry.querySelector('button').addEventListener('click', ()=>{
+      notes.splice(realIdx, 1);
+      localStorage.setItem('grimoire_notes', JSON.stringify(notes));
+      renderNotes();
+    });
+    list.appendChild(entry);
+  });
+}
+
+document.getElementById('add-note-btn').addEventListener('click', ()=>{
+  const title = document.getElementById('note-title').value.trim();
+  const body = document.getElementById('note-body').value.trim();
+  if(!title || !body){
+    alert('Add a title and some notes.');
+    return;
+  }
+  notes.push({ title, body, date: new Date().toLocaleDateString() });
+  localStorage.setItem('grimoire_notes', JSON.stringify(notes));
+  document.getElementById('note-title').value = '';
+  document.getElementById('note-body').value = '';
+  renderNotes();
+});
+
+renderNotes();
+</script>
+</body>
+</html>
