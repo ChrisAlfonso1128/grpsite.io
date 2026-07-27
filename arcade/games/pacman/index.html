@@ -129,6 +129,11 @@
   .touch-controls button{ padding:0; font-size:18px; background:var(--panel); color:var(--text); border:1px solid var(--panel-border); }
   @media (pointer:coarse){ .touch-controls{ display:grid; } }
 </style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#ff2f9e">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 
@@ -532,6 +537,13 @@ document.getElementById('restart-btn').addEventListener('click', resetGame);
 
 resetGame();
 requestAnimationFrame(loop);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
