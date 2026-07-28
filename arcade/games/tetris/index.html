@@ -33,6 +33,9 @@
     font-family:'Chakra Petch', sans-serif;
     position:relative;
     overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;
+    user-select:none;
   }
   /* horizon grid effect */
   body::before{
@@ -492,16 +495,21 @@ document.addEventListener('keydown', (e)=>{
 });
 
 // --- touch controls: horizontal drag slides the piece with the finger in real
-// time, a tap rotates, and a decisive downward swipe hard-drops ---
+// time, a tap rotates, and a decisive downward swipe hard-drops. Each gesture
+// locks to one axis (whichever the finger moves further in first) so a swipe
+// meant to be a straight-down drop doesn't also drag the piece sideways from
+// natural finger wobble. ---
 (function(){
   const target = document.querySelector('.board-wrap');
-  let startX = 0, startY = 0, startTime = 0, colsMoved = 0;
+  let startX = 0, startY = 0, startTime = 0, colsMoved = 0, axisLock = null;
+  const AXIS_LOCK_THRESHOLD = 10; // px of movement before committing to an axis
 
   target.addEventListener('touchstart', (e)=>{
     if(gameOver) return;
     const t = e.touches[0];
     startX = t.clientX; startY = t.clientY; startTime = Date.now();
     colsMoved = 0;
+    axisLock = null;
   }, {passive:true});
 
   target.addEventListener('touchmove', (e)=>{
@@ -509,10 +517,21 @@ document.addEventListener('keydown', (e)=>{
     if(gameOver) return;
     const t = e.touches[0];
     const dx = t.clientX - startX;
-    const targetCols = Math.round(dx / CELL);
-    while(colsMoved < targetCols){ if(move(1,0)) colsMoved++; else break; }
-    while(colsMoved > targetCols){ if(move(-1,0)) colsMoved--; else break; }
-    draw();
+    const dy = t.clientY - startY;
+
+    if(!axisLock){
+      if(Math.abs(dx) < AXIS_LOCK_THRESHOLD && Math.abs(dy) < AXIS_LOCK_THRESHOLD) return;
+      axisLock = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+
+    if(axisLock === 'horizontal'){
+      const targetCols = Math.round(dx / CELL);
+      while(colsMoved < targetCols){ if(move(1,0)) colsMoved++; else break; }
+      while(colsMoved > targetCols){ if(move(-1,0)) colsMoved--; else break; }
+      draw();
+    }
+    // axisLock === 'vertical': don't move the piece during the drag itself —
+    // touchend below checks the total downward distance for a hard drop.
   }, {passive:false});
 
   target.addEventListener('touchend', (e)=>{
@@ -526,7 +545,7 @@ document.addEventListener('keydown', (e)=>{
     if(dist < 12 && duration < 400){
       rotate();
       draw();
-    } else if(dy > 40 && dy > Math.abs(dx)){
+    } else if(axisLock === 'vertical' && dy > 40){
       hardDrop();
       draw();
     }
