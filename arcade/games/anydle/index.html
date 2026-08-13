@@ -93,38 +93,18 @@
   }
   header p{ color:var(--sub); max-width:60ch; margin:0; font-size:14px; }
 
-  main{ max-width:900px; margin:0 auto; padding:0 20px 80px; }
-
-  .tab-bar{
-    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
-    border-bottom:1px solid var(--border); margin-bottom:20px;
-  }
-  .tab-btn{
-    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px;
-    background:transparent; color:var(--muted); border:none;
-    border-bottom:2px solid transparent; padding:10px 16px; cursor:pointer;
-    white-space:nowrap; transition:color .15s ease, border-color .15s ease;
-  }
-  .tab-btn:hover{ color:var(--text); }
-  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
-  .tab-panel{ display:none; }
-  .tab-panel.active{ display:grid; gap:18px; }
+  main{ max-width:900px; margin:0 auto; padding:0 20px 80px; display:grid; gap:18px; }
 
   .panel{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px; }
   .panel h2{ font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:700; margin:0 0 4px; color:var(--text); }
   .panel .sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
 
-  label{
-    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
-    letter-spacing:.06em; color:var(--muted); display:block; margin-bottom:5px;
-  }
   input, select{
     background:var(--card-2); border:1px solid var(--border); border-radius:6px;
     padding:10px 10px; color:var(--text); font-family:'Inter', sans-serif;
     font-size:16px; width:100%;
   }
   input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
-  .field{ display:flex; flex-direction:column; gap:4px; }
 
   button{
     font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px;
@@ -135,7 +115,6 @@
   button:hover{ filter:brightness(1.1); }
   button:active{ transform:scale(.96); }
   button.btn-ghost{ background:var(--card-2); color:var(--text); border:1px solid var(--border); }
-  button.btn-danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
   button.btn-small{ padding:7px 12px; font-size:12px; min-height:34px; }
 
   /* --- CSV load panel --- */
@@ -151,6 +130,12 @@
   .dataset-summary{
     margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);
   }
+  .advanced-toggle{
+    background:none; border:none; color:var(--muted); font-family:'JetBrains Mono',monospace;
+    font-size:11px; text-decoration:underline; cursor:pointer; padding:0; margin-top:14px;
+  }
+  .advanced-row{ display:none; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .advanced-row.open{ display:flex; }
 
   /* --- play tab --- */
   .guess-row{ display:flex; gap:10px; margin-bottom:18px; }
@@ -183,21 +168,7 @@
   .end-banner .answer{ font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:22px; color:var(--accent); }
   .end-banner .tries{ color:var(--muted); font-size:13px; margin-top:4px; }
 
-  .attempts-left{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--muted); margin-bottom:14px; }
-
-  /* --- data tab --- */
-  .schema-row, .item-row{
-    display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;
-  }
-  .schema-row input[type="text"]{ flex:1; min-width:100px; }
-  .schema-row select{ width:auto; min-width:90px; }
-  .item-card{
-    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
-    padding:14px; margin-bottom:10px;
-  }
-  .item-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .item-field-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
-  .item-field-grid .field label{ font-size:10px; }
+  .attempts-count{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--muted); margin-bottom:14px; }
 
   .empty{ color:var(--muted); font-size:14px; padding:20px 0; text-align:center; }
 
@@ -213,74 +184,45 @@
   </div>
   <p class="eyebrow">// guess the daily mystery item</p>
   <h1>ANYDLE</h1>
-  <p>A Wordle-style daily guessing game about whatever you upload — load a spreadsheet below, or build a dataset by hand on the Data tab.</p>
+  <p>A Wordle-style daily guessing game about whatever you upload. No guess limit — just see how many it takes you.</p>
 </header>
 
 <main>
 
-  <div class="tab-bar" id="tab-bar">
-    <button type="button" class="tab-btn active" data-tab="play">Play</button>
-    <button type="button" class="tab-btn" data-tab="data">Data</button>
-  </div>
+  <section class="panel load-panel">
+    <div class="load-row">
+      <span class="step-label">Step 1: Load your database</span>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv">
+      <button type="button" class="btn-ghost btn-small" id="load-csv-btn">Load CSV</button>
+    </div>
+    <div class="dataset-summary" id="dataset-summary"></div>
+    <button type="button" class="advanced-toggle" id="advanced-toggle">Advanced: backup / restore / sample dataset</button>
+    <div class="advanced-row" id="advanced-row">
+      <button type="button" class="btn-ghost btn-small" id="export-config-btn">⬇ Export Current Dataset (JSON)</button>
+      <button type="button" class="btn-ghost btn-small" id="load-sample-btn">Load Sample Dataset</button>
+      <input type="file" id="import-config-file" accept="application/json" style="width:auto; flex:1; min-width:160px;">
+      <button type="button" class="btn-ghost btn-small" id="import-config-btn">Import JSON</button>
+    </div>
+  </section>
 
-  <!-- PLAY -->
-  <div class="tab-panel active" data-tab="play">
-    <section class="panel load-panel">
-      <div class="load-row">
-        <span class="step-label">Step 1: Load your database</span>
-        <input type="file" id="csv-file-input" accept=".csv,text/csv">
-        <button type="button" class="btn-ghost btn-small" id="load-csv-btn">Load CSV</button>
-      </div>
-      <div class="dataset-summary" id="dataset-summary"></div>
-    </section>
+  <section class="panel">
+    <h2 id="play-title">Today's Puzzle</h2>
+    <p class="sub" id="play-sub">Guess the mystery item. Each guess reveals how close you are on every attribute. No limit — take as many tries as you need.</p>
 
-    <section class="panel">
-      <h2 id="play-title">Today's Puzzle</h2>
-      <p class="sub" id="play-sub">Guess the mystery item. Each guess reveals how close you are on every attribute.</p>
+    <div id="end-banner-wrap"></div>
 
-      <div id="end-banner-wrap"></div>
+    <div class="guess-row" id="guess-row">
+      <input type="text" id="guess-input" placeholder="Type a name..." list="item-names" autocomplete="off">
+      <datalist id="item-names"></datalist>
+      <button type="button" id="guess-btn">Guess</button>
+    </div>
+    <div class="attempts-count" id="attempts-count"></div>
 
-      <div class="guess-row" id="guess-row">
-        <input type="text" id="guess-input" placeholder="Type a name..." list="item-names" autocomplete="off">
-        <datalist id="item-names"></datalist>
-        <button type="button" id="guess-btn">Guess</button>
-      </div>
-      <div class="attempts-left" id="attempts-left"></div>
-
-      <div class="guess-table-wrap">
-        <table class="guess-table" id="guess-table"></table>
-      </div>
-      <p class="empty" id="empty-guesses" style="display:none;">No guesses yet — give it a shot.</p>
-    </section>
-  </div>
-
-  <!-- DATA -->
-  <div class="tab-panel" data-tab="data">
-    <section class="panel">
-      <h2>Attributes</h2>
-      <p class="sub">Text = exact match, Number = shows higher/lower, List = semicolon-separated values with partial credit for overlap. Types auto-detect on CSV load, but you can fix any of them here.</p>
-      <div id="schema-list"></div>
-      <button type="button" class="btn-ghost" id="add-attribute-btn" style="margin-top:8px;">+ Add Attribute</button>
-    </section>
-
-    <section class="panel">
-      <h2>Items</h2>
-      <p class="sub">Everything that can be the mystery item — or a wrong guess.</p>
-      <div id="items-list"></div>
-      <button type="button" class="btn-ghost" id="add-item-btn" style="margin-top:8px;">+ Add Item</button>
-    </section>
-
-    <section class="panel">
-      <h2>Import / Export</h2>
-      <p class="sub">Back up your dataset as JSON, or load one built elsewhere.</p>
-      <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-        <button type="button" id="export-config-btn">⬇ Export Dataset (JSON)</button>
-        <button type="button" class="btn-ghost" id="load-sample-btn">Load Sample Dataset</button>
-      </div>
-      <input type="file" id="import-config-file" accept="application/json" style="margin-bottom:10px;">
-      <button type="button" class="btn-ghost" id="import-config-btn">Import from JSON File</button>
-    </section>
-  </div>
+    <div class="guess-table-wrap">
+      <table class="guess-table" id="guess-table"></table>
+    </div>
+    <p class="empty" id="empty-guesses" style="display:none;">No guesses yet — give it a shot.</p>
+  </section>
 
 </main>
 
@@ -309,25 +251,14 @@ document.getElementById('theme-toggle-btn').addEventListener('click', ()=>{
 });
 updateThemeButtonIcon();
 
-// ============================================================
-// Tabs
-// ============================================================
-function switchTab(target){
-  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === target));
-  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
-  if(target === 'data') renderDataTab();
-}
-document.getElementById('tab-bar').addEventListener('click', (e)=>{
-  const btn = e.target.closest('.tab-btn');
-  if(!btn) return;
-  switchTab(btn.dataset.tab);
+document.getElementById('advanced-toggle').addEventListener('click', ()=>{
+  document.getElementById('advanced-row').classList.toggle('open');
 });
 
 // ============================================================
-// Sample dataset (shown on first visit so the format is obvious)
+// Sample dataset (loaded by default on first visit)
 // ============================================================
 const SAMPLE_CONFIG = {
-  maxGuesses: 8,
   attributes: [
     { name: 'Genre', type: 'text' },
     { name: 'Release Year', type: 'number' },
@@ -415,7 +346,7 @@ function buildConfigFromCSV(rows){
     return { name: (r[nameCol] || '').trim(), values };
   }).filter(it => it.name !== '');
 
-  return { maxGuesses: 8, attributes, items };
+  return { attributes, items };
 }
 
 document.getElementById('load-csv-btn').addEventListener('click', ()=>{
@@ -431,8 +362,9 @@ document.getElementById('load-csv-btn').addEventListener('click', ()=>{
       if(config.items.length > 0 && !confirm(`Load ${newConfig.items.length} item(s) with ${newConfig.attributes.length} attribute(s)? This replaces your current dataset.`)) return;
       config = newConfig;
       saveConfig();
+      gameState = { guesses: [], won: false };
+      saveGameState(gameState);
       renderPlay();
-      renderDataTab();
     }catch(err){
       alert('Could not read that CSV -- first row should be headers (name, then attribute columns), each following row one item. ' + err.message);
     }
@@ -459,11 +391,11 @@ function todaysAnswer(){
 }
 
 // ============================================================
-// Game state (per day, persisted)
+// Game state (per day, persisted) -- unlimited guesses, just counted
 // ============================================================
 function loadGameState(){
   const raw = localStorage.getItem('anydle_state_' + todayStr());
-  return raw ? JSON.parse(raw) : { guesses: [], won: false, lost: false };
+  return raw ? JSON.parse(raw) : { guesses: [], won: false };
 }
 function saveGameState(state){
   localStorage.setItem('anydle_state_' + todayStr(), JSON.stringify(state));
@@ -494,35 +426,34 @@ function compareAttribute(type, guessVal, answerVal){
 }
 
 // ============================================================
-// Play tab rendering
+// Play rendering
 // ============================================================
 function renderPlay(){
   const answer = todaysAnswer();
-  const maxGuesses = config.maxGuesses || 8;
 
   if(!answer){
     document.getElementById('guess-row').style.display = 'none';
-    document.getElementById('attempts-left').textContent = '';
+    document.getElementById('attempts-count').textContent = '';
     document.getElementById('guess-table').innerHTML = '';
     document.getElementById('empty-guesses').style.display = 'block';
-    document.getElementById('empty-guesses').textContent = 'No items yet -- load a CSV above, or add some on the Data tab.';
+    document.getElementById('empty-guesses').textContent = 'No items yet -- load a CSV above.';
     document.getElementById('end-banner-wrap').innerHTML = '';
     return;
   }
 
-  const over = gameState.won || gameState.lost;
+  const over = gameState.won;
   document.getElementById('guess-row').style.display = over ? 'none' : 'flex';
-  document.getElementById('attempts-left').textContent = over
+  document.getElementById('attempts-count').textContent = over
     ? ''
-    : `${maxGuesses - gameState.guesses.length} guess${maxGuesses - gameState.guesses.length !== 1 ? 'es' : ''} left`;
+    : `${gameState.guesses.length} guess${gameState.guesses.length !== 1 ? 'es' : ''} so far`;
 
   const bannerWrap = document.getElementById('end-banner-wrap');
   if(over){
     bannerWrap.innerHTML = `
       <div class="end-banner">
-        <div>${gameState.won ? '\ud83c\udf89 Got it!' : '\ud83d\udc80 Out of guesses'}</div>
+        <div>\ud83c\udf89 Got it!</div>
         <div class="answer">${answer.name}</div>
-        <div class="tries">${gameState.won ? `Solved in ${gameState.guesses.length} guess${gameState.guesses.length!==1?'es':''}` : `${gameState.guesses.length} guesses used`} \u00b7 come back tomorrow for a new one</div>
+        <div class="tries">Solved in ${gameState.guesses.length} guess${gameState.guesses.length!==1?'es':''} \u00b7 come back tomorrow for a new one</div>
       </div>
     `;
   } else {
@@ -574,8 +505,6 @@ document.getElementById('guess-btn').addEventListener('click', ()=>{
   const answer = todaysAnswer();
   if(item.name === answer.name){
     gameState.won = true;
-  } else if(gameState.guesses.length >= (config.maxGuesses || 8)){
-    gameState.lost = true;
   }
   saveGameState(gameState);
   input.value = '';
@@ -586,119 +515,7 @@ document.getElementById('guess-input').addEventListener('keydown', (e)=>{
 });
 
 // ============================================================
-// Data tab rendering
-// ============================================================
-function renderDataTab(){
-  renderSchemaList();
-  renderItemsList();
-}
-
-function renderSchemaList(){
-  const wrap = document.getElementById('schema-list');
-  wrap.innerHTML = '';
-  config.attributes.forEach((attr, i)=>{
-    const row = document.createElement('div');
-    row.className = 'schema-row';
-    row.innerHTML = `
-      <input type="text" value="${attr.name.replace(/"/g,'&quot;')}" data-idx="${i}" class="attr-name-input">
-      <select data-idx="${i}" class="attr-type-input">
-        <option value="text" ${attr.type==='text'?'selected':''}>Text</option>
-        <option value="number" ${attr.type==='number'?'selected':''}>Number</option>
-        <option value="list" ${attr.type==='list'?'selected':''}>List</option>
-      </select>
-      <button type="button" class="btn-small btn-danger remove-attr-btn" data-idx="${i}">\u2715</button>
-    `;
-    wrap.appendChild(row);
-  });
-  wrap.querySelectorAll('.attr-name-input').forEach(input=>{
-    input.addEventListener('change', (e)=>{
-      config.attributes[e.target.dataset.idx].name = e.target.value;
-      saveConfig();
-    });
-  });
-  wrap.querySelectorAll('.attr-type-input').forEach(sel=>{
-    sel.addEventListener('change', (e)=>{
-      config.attributes[e.target.dataset.idx].type = e.target.value;
-      saveConfig();
-    });
-  });
-  wrap.querySelectorAll('.remove-attr-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      const idx = parseInt(e.target.dataset.idx);
-      const removedName = config.attributes[idx].name;
-      config.attributes.splice(idx, 1);
-      config.items.forEach(it => delete it.values[removedName]);
-      saveConfig();
-      renderDataTab();
-    });
-  });
-}
-
-document.getElementById('add-attribute-btn').addEventListener('click', ()=>{
-  config.attributes.push({ name: 'New Attribute', type: 'text' });
-  saveConfig();
-  renderDataTab();
-});
-
-function renderItemsList(){
-  const wrap = document.getElementById('items-list');
-  wrap.innerHTML = '';
-  if(config.items.length === 0){
-    wrap.innerHTML = '<p class="empty">No items yet -- add one below, or load a CSV on the Play tab.</p>';
-    return;
-  }
-  config.items.forEach((item, i)=>{
-    const card = document.createElement('div');
-    card.className = 'item-card';
-    card.innerHTML = `
-      <div class="item-card-head">
-        <input type="text" value="${item.name.replace(/"/g,'&quot;')}" class="item-name-input" data-idx="${i}" style="font-weight:700;">
-        <button type="button" class="btn-small btn-danger remove-item-btn" data-idx="${i}">\u2715</button>
-      </div>
-      <div class="item-field-grid">
-        ${config.attributes.map(attr => `
-          <div class="field">
-            <label>${attr.name}</label>
-            <input type="text" class="item-attr-input" data-idx="${i}" data-attr="${attr.name.replace(/"/g,'&quot;')}" value="${(item.values[attr.name] !== undefined ? item.values[attr.name] : '').toString().replace(/"/g,'&quot;')}">
-          </div>
-        `).join('')}
-      </div>
-    `;
-    wrap.appendChild(card);
-  });
-  wrap.querySelectorAll('.item-name-input').forEach(input=>{
-    input.addEventListener('change', (e)=>{
-      config.items[e.target.dataset.idx].name = e.target.value;
-      saveConfig();
-    });
-  });
-  wrap.querySelectorAll('.item-attr-input').forEach(input=>{
-    input.addEventListener('change', (e)=>{
-      const idx = e.target.dataset.idx;
-      const attrName = e.target.dataset.attr;
-      config.items[idx].values[attrName] = e.target.value;
-      saveConfig();
-    });
-  });
-  wrap.querySelectorAll('.remove-item-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      config.items.splice(parseInt(e.target.dataset.idx), 1);
-      saveConfig();
-      renderDataTab();
-    });
-  });
-}
-
-document.getElementById('add-item-btn').addEventListener('click', ()=>{
-  const values = {};
-  config.attributes.forEach(attr => values[attr.name] = '');
-  config.items.push({ name: 'New Item', values });
-  saveConfig();
-  renderDataTab();
-});
-
-// ============================================================
-// Import / Export (JSON)
+// Import / Export (JSON) -- tucked under "Advanced"
 // ============================================================
 document.getElementById('export-config-btn').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
@@ -714,7 +531,8 @@ document.getElementById('load-sample-btn').addEventListener('click', ()=>{
   if(!confirm('Replace your current dataset with the sample one?')) return;
   config = JSON.parse(JSON.stringify(SAMPLE_CONFIG));
   saveConfig();
-  renderDataTab();
+  gameState = { guesses: [], won: false };
+  saveGameState(gameState);
   renderPlay();
 });
 
@@ -729,9 +547,9 @@ document.getElementById('import-config-btn').addEventListener('click', ()=>{
       if(!parsed.attributes || !parsed.items) throw new Error('bad shape');
       if(!confirm(`Import ${parsed.items.length} item(s) and ${parsed.attributes.length} attribute(s)? This replaces your current dataset.`)) return;
       config = parsed;
-      if(!config.maxGuesses) config.maxGuesses = 8;
       saveConfig();
-      renderDataTab();
+      gameState = { guesses: [], won: false };
+      saveGameState(gameState);
       renderPlay();
       alert('Dataset imported.');
     }catch(err){
