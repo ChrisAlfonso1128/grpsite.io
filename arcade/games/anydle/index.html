@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Anydle</title>
+<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<script>
+  (function(){
+    try{
+      if(localStorage.getItem('anydle_theme') === 'light'){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    }catch(e){}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  html{ touch-action:manipulation; }
+  :root{
+    --bg:#0a0e17;
+    --card:#111826;
+    --card-2:#182236;
+    --border:#28374f;
+    --text:#e8edf5;
+    --sub:#a3b3cc;
+    --muted:#66768f;
+    --accent:#4fd6e0;
+    --accent-2:#5b8def;
+    --green:#4fd18b;
+    --yellow:#e0c34f;
+    --red-cell:#3a2530;
+    --red:#e0725c;
+    --glow-1:rgba(79,214,224,0.12);
+    --glow-2:rgba(91,141,239,0.08);
+  }
+  [data-theme="light"]{
+    --bg:#f2f7fa;
+    --card:#ffffff;
+    --card-2:#eaf2f7;
+    --border:#c3d7e6;
+    --text:#0f1a2b;
+    --sub:#3d5570;
+    --muted:#7a8ba3;
+    --accent:#0e9aa8;
+    --accent-2:#3667d6;
+    --green:#2f9e6c;
+    --yellow:#a8830f;
+    --red-cell:#f7dfe0;
+    --red:#c9422f;
+    --glow-1:rgba(14,154,168,0.08);
+    --glow-2:rgba(54,103,214,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 0%, var(--glow-1), transparent 55%),
+      radial-gradient(circle at 85% 100%, var(--glow-2), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+    transition:background-color .2s ease, color .2s ease;
+  }
+  ::selection{ background:var(--accent); color:#04141a; }
+
+  header{ max-width:900px; margin:0 auto; padding:32px 20px 16px; }
+  .header-top-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; color:var(--muted); text-decoration:none;
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.04em;
+    transition:color .15s ease;
+  }
+  .back-link:hover{ color:var(--accent); }
+  .theme-toggle-btn{
+    width:auto; margin:0; padding:8px 10px; background:var(--card-2); border:1px solid var(--border);
+    border-radius:8px; font-size:14px; line-height:1; cursor:pointer;
+    transition:border-color .15s ease, transform .08s ease;
+  }
+  .theme-toggle-btn:hover{ border-color:var(--accent); }
+  .theme-toggle-btn:active{ transform:scale(.94); }
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:800; font-size:clamp(34px,7vw,50px);
+    letter-spacing:.01em; margin:0 0 6px; color:var(--text);
+  }
+  header p{ color:var(--sub); max-width:60ch; margin:0; font-size:14px; }
+
+  main{ max-width:900px; margin:0 auto; padding:0 20px 80px; }
+
+  .tab-bar{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;
+    border-bottom:1px solid var(--border); margin-bottom:20px;
+  }
+  .tab-btn{
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px;
+    background:transparent; color:var(--muted); border:none;
+    border-bottom:2px solid transparent; padding:10px 16px; cursor:pointer;
+    white-space:nowrap; transition:color .15s ease, border-color .15s ease;
+  }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:grid; gap:18px; }
+
+  .panel{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px; }
+  .panel h2{ font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:700; margin:0 0 4px; color:var(--text); }
+  .panel .sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
+
+  label{
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); display:block; margin-bottom:5px;
+  }
+  input, select{
+    background:var(--card-2); border:1px solid var(--border); border-radius:6px;
+    padding:10px 10px; color:var(--text); font-family:'Inter', sans-serif;
+    font-size:16px; width:100%;
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+
+  button{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#04141a; border:none; border-radius:8px; padding:12px 20px;
+    cursor:pointer; transition:filter .15s ease, transform .08s ease;
+  }
+  button:hover{ filter:brightness(1.1); }
+  button:active{ transform:scale(.96); }
+  button.btn-ghost{ background:var(--card-2); color:var(--text); border:1px solid var(--border); }
+  button.btn-danger{ background:transparent; color:var(--red); border:1px solid var(--red); }
+  button.btn-small{ padding:7px 12px; font-size:12px; min-height:34px; }
+
+  /* --- CSV load panel --- */
+  .load-panel{
+    border:2px dashed var(--border);
+    background:var(--card-2);
+  }
+  .load-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .load-row .step-label{ font-weight:700; white-space:nowrap; }
+  .load-row input[type="file"]{
+    width:auto; flex:1; min-width:180px; padding:8px; font-size:13px;
+  }
+  .dataset-summary{
+    margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);
+  }
+
+  /* --- play tab --- */
+  .guess-row{ display:flex; gap:10px; margin-bottom:18px; }
+  .guess-row input{ flex:1; }
+
+  .guess-table-wrap{ overflow-x:auto; }
+  .guess-table{ border-collapse:separate; border-spacing:4px; width:100%; }
+  .guess-table th{
+    font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase;
+    color:var(--muted); padding:4px 6px; text-align:center; font-weight:500;
+    white-space:nowrap;
+  }
+  .guess-table td{
+    text-align:center; padding:10px 8px; border-radius:6px; font-size:13px;
+    font-weight:600; white-space:nowrap; min-width:70px;
+  }
+  .guess-table td.name-cell{
+    text-align:left; font-family:'Space Grotesk',sans-serif; background:var(--card-2);
+    border:1px solid var(--border); min-width:120px;
+  }
+  .cell-green{ background:var(--green); color:#04140c; }
+  .cell-yellow{ background:var(--yellow); color:#241c04; }
+  .cell-red{ background:var(--red-cell); color:var(--sub); }
+  .arrow{ font-size:11px; margin-left:3px; }
+
+  .end-banner{
+    padding:16px 18px; border-radius:10px; margin-bottom:16px;
+    background:var(--card-2); border:1px solid var(--accent); text-align:center;
+  }
+  .end-banner .answer{ font-family:'Space Grotesk',sans-serif; font-weight:800; font-size:22px; color:var(--accent); }
+  .end-banner .tries{ color:var(--muted); font-size:13px; margin-top:4px; }
+
+  .attempts-left{ font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--muted); margin-bottom:14px; }
+
+  /* --- data tab --- */
+  .schema-row, .item-row{
+    display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;
+  }
+  .schema-row input[type="text"]{ flex:1; min-width:100px; }
+  .schema-row select{ width:auto; min-width:90px; }
+  .item-card{
+    background:var(--card-2); border:1px solid var(--border); border-radius:8px;
+    padding:14px; margin-bottom:10px;
+  }
+  .item-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .item-field-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+  .item-field-grid .field label{ font-size:10px; }
+
+  .empty{ color:var(--muted); font-size:14px; padding:20px 0; text-align:center; }
+
+  footer{ max-width:900px; margin:0 auto; padding:0 20px 60px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top-row">
+    <a class="back-link" href="../../index.html">← Arcade</a>
+    <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle light/dark theme">☀️</button>
+  </div>
+  <p class="eyebrow">// guess the daily mystery item</p>
+  <h1>ANYDLE</h1>
+  <p>A Wordle-style daily guessing game about whatever you upload — load a spreadsheet below, or build a dataset by hand on the Data tab.</p>
+</header>
+
+<main>
+
+  <div class="tab-bar" id="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="play">Play</button>
+    <button type="button" class="tab-btn" data-tab="data">Data</button>
+  </div>
+
+  <!-- PLAY -->
+  <div class="tab-panel active" data-tab="play">
+    <section class="panel load-panel">
+      <div class="load-row">
+        <span class="step-label">Step 1: Load your database</span>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv">
+        <button type="button" class="btn-ghost btn-small" id="load-csv-btn">Load CSV</button>
+      </div>
+      <div class="dataset-summary" id="dataset-summary"></div>
+    </section>
+
+    <section class="panel">
+      <h2 id="play-title">Today's Puzzle</h2>
+      <p class="sub" id="play-sub">Guess the mystery item. Each guess reveals how close you are on every attribute.</p>
+
+      <div id="end-banner-wrap"></div>
+
+      <div class="guess-row" id="guess-row">
+        <input type="text" id="guess-input" placeholder="Type a name..." list="item-names" autocomplete="off">
+        <datalist id="item-names"></datalist>
+        <button type="button" id="guess-btn">Guess</button>
+      </div>
+      <div class="attempts-left" id="attempts-left"></div>
+
+      <div class="guess-table-wrap">
+        <table class="guess-table" id="guess-table"></table>
+      </div>
+      <p class="empty" id="empty-guesses" style="display:none;">No guesses yet — give it a shot.</p>
+    </section>
+  </div>
+
+  <!-- DATA -->
+  <div class="tab-panel" data-tab="data">
+    <section class="panel">
+      <h2>Attributes</h2>
+      <p class="sub">Text = exact match, Number = shows higher/lower, List = semicolon-separated values with partial credit for overlap. Types auto-detect on CSV load, but you can fix any of them here.</p>
+      <div id="schema-list"></div>
+      <button type="button" class="btn-ghost" id="add-attribute-btn" style="margin-top:8px;">+ Add Attribute</button>
+    </section>
+
+    <section class="panel">
+      <h2>Items</h2>
+      <p class="sub">Everything that can be the mystery item — or a wrong guess.</p>
+      <div id="items-list"></div>
+      <button type="button" class="btn-ghost" id="add-item-btn" style="margin-top:8px;">+ Add Item</button>
+    </section>
+
+    <section class="panel">
+      <h2>Import / Export</h2>
+      <p class="sub">Back up your dataset as JSON, or load one built elsewhere.</p>
+      <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+        <button type="button" id="export-config-btn">⬇ Export Dataset (JSON)</button>
+        <button type="button" class="btn-ghost" id="load-sample-btn">Load Sample Dataset</button>
+      </div>
+      <input type="file" id="import-config-file" accept="application/json" style="margin-bottom:10px;">
+      <button type="button" class="btn-ghost" id="import-config-btn">Import from JSON File</button>
+    </section>
+  </div>
+
+</main>
+
+<footer>
+  Everything here saves to this browser's local storage only — your dataset never leaves this device unless you export it.
+</footer>
+
+<script>
+// ============================================================
+// Theme
+// ============================================================
+function updateThemeButtonIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('theme-toggle-btn').textContent = isLight ? '🌙' : '☀️';
+}
+document.getElementById('theme-toggle-btn').addEventListener('click', ()=>{
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('anydle_theme', 'dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('anydle_theme', 'light');
+  }
+  updateThemeButtonIcon();
+});
+updateThemeButtonIcon();
+
+// ============================================================
+// Tabs
+// ============================================================
+function switchTab(target){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab === target));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tab === target));
+  if(target === 'data') renderDataTab();
+}
+document.getElementById('tab-bar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+// ============================================================
+// Sample dataset (shown on first visit so the format is obvious)
+// ============================================================
+const SAMPLE_CONFIG = {
+  maxGuesses: 8,
+  attributes: [
+    { name: 'Genre', type: 'text' },
+    { name: 'Release Year', type: 'number' },
+    { name: 'Platforms', type: 'list' },
+  ],
+  items: [
+    { name: 'Portal 2', values: { Genre: 'Puzzle', 'Release Year': 2011, Platforms: 'PC;PS3;Xbox 360' } },
+    { name: 'Hades', values: { Genre: 'Roguelike', 'Release Year': 2020, Platforms: 'PC;Switch;PS4' } },
+    { name: 'Celeste', values: { Genre: 'Platformer', 'Release Year': 2018, Platforms: 'PC;Switch;PS4' } },
+    { name: 'Stardew Valley', values: { Genre: 'Simulation', 'Release Year': 2016, Platforms: 'PC;Switch;PS4' } },
+    { name: 'Hollow Knight', values: { Genre: 'Metroidvania', 'Release Year': 2017, Platforms: 'PC;Switch;PS4' } },
+  ],
+};
+
+// ============================================================
+// Data
+// ============================================================
+let config = JSON.parse(localStorage.getItem('anydle_config') || 'null') || JSON.parse(JSON.stringify(SAMPLE_CONFIG));
+
+function saveConfig(){
+  localStorage.setItem('anydle_config', JSON.stringify(config));
+  populateItemNamesDatalist();
+  renderDatasetSummary();
+}
+
+function populateItemNamesDatalist(){
+  const list = document.getElementById('item-names');
+  list.innerHTML = config.items.map(it => `<option value="${it.name.replace(/"/g,'&quot;')}">`).join('');
+}
+
+function renderDatasetSummary(){
+  const el = document.getElementById('dataset-summary');
+  el.textContent = `${config.items.length} item${config.items.length!==1?'s':''} \u00b7 ${config.attributes.length} attribute${config.attributes.length!==1?'s':''}: ${config.attributes.map(a=>a.name).join(', ')}`;
+}
+
+// ============================================================
+// CSV parsing -- first column is the item name, every other column
+// becomes an attribute. Handles quoted fields (commas inside quotes).
+// A column auto-detects as "number" if every non-empty value is
+// numeric, "list" if any value contains a semicolon, else "text".
+// ============================================================
+function parseCSVText(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        field += c;
+      }
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+      else if(c === '\r'){ /* skip, \n handles the line break */ }
+      else field += c;
+    }
+  }
+  if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell.trim() !== ''));
+}
+
+function buildConfigFromCSV(rows){
+  if(rows.length < 2) throw new Error('Need a header row plus at least one data row.');
+  const headers = rows[0].map(h => h.trim());
+  const nameCol = 0;
+  const attrCols = headers.slice(1);
+
+  const columnValues = attrCols.map((_, i) => rows.slice(1).map(r => (r[i+1] || '').trim()).filter(v => v !== ''));
+
+  const attributes = attrCols.map((name, i) => {
+    const values = columnValues[i];
+    const allNumeric = values.length > 0 && values.every(v => v !== '' && !isNaN(parseFloat(v)) && isFinite(v));
+    const hasSemicolon = values.some(v => v.includes(';'));
+    const type = allNumeric ? 'number' : (hasSemicolon ? 'list' : 'text');
+    return { name, type };
+  });
+
+  const items = rows.slice(1).map(r => {
+    const values = {};
+    attrCols.forEach((name, i) => { values[name] = (r[i+1] || '').trim(); });
+    return { name: (r[nameCol] || '').trim(), values };
+  }).filter(it => it.name !== '');
+
+  return { maxGuesses: 8, attributes, items };
+}
+
+document.getElementById('load-csv-btn').addEventListener('click', ()=>{
+  const fileInput = document.getElementById('csv-file-input');
+  const file = fileInput.files[0];
+  if(!file){ alert('Choose a CSV file first.'); return; }
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const rows = parseCSVText(evt.target.result);
+      const newConfig = buildConfigFromCSV(rows);
+      if(newConfig.items.length === 0) throw new Error('No usable rows found.');
+      if(config.items.length > 0 && !confirm(`Load ${newConfig.items.length} item(s) with ${newConfig.attributes.length} attribute(s)? This replaces your current dataset.`)) return;
+      config = newConfig;
+      saveConfig();
+      renderPlay();
+      renderDataTab();
+    }catch(err){
+      alert('Could not read that CSV -- first row should be headers (name, then attribute columns), each following row one item. ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ============================================================
+// Daily selection -- deterministic per date, same for everyone on this dataset
+// ============================================================
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function hashDateToIndex(dateStr, length){
+  let hash = 0;
+  for(let i=0; i<dateStr.length; i++) hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0;
+  return hash % length;
+}
+function todaysAnswer(){
+  if(config.items.length === 0) return null;
+  const idx = hashDateToIndex(todayStr(), config.items.length);
+  return config.items[idx];
+}
+
+// ============================================================
+// Game state (per day, persisted)
+// ============================================================
+function loadGameState(){
+  const raw = localStorage.getItem('anydle_state_' + todayStr());
+  return raw ? JSON.parse(raw) : { guesses: [], won: false, lost: false };
+}
+function saveGameState(state){
+  localStorage.setItem('anydle_state_' + todayStr(), JSON.stringify(state));
+}
+let gameState = loadGameState();
+
+// ============================================================
+// Comparison logic
+// ============================================================
+function compareAttribute(type, guessVal, answerVal){
+  if(guessVal === undefined || guessVal === '' ) return { color: 'red' };
+  if(type === 'number'){
+    const g = parseFloat(guessVal), a = parseFloat(answerVal);
+    if(isNaN(g) || isNaN(a)) return { color: 'red' };
+    if(g === a) return { color: 'green' };
+    return { color: 'red', arrow: g < a ? '\u2191' : '\u2193' };
+  }
+  if(type === 'list'){
+    const g = String(guessVal).split(';').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    const a = String(answerVal).split(';').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    const aSet = new Set(a);
+    const identical = g.length === a.length && g.every(x => aSet.has(x));
+    if(identical) return { color: 'green' };
+    const overlap = g.some(x => aSet.has(x));
+    return { color: overlap ? 'yellow' : 'red' };
+  }
+  return { color: String(guessVal).trim().toLowerCase() === String(answerVal).trim().toLowerCase() ? 'green' : 'red' };
+}
+
+// ============================================================
+// Play tab rendering
+// ============================================================
+function renderPlay(){
+  const answer = todaysAnswer();
+  const maxGuesses = config.maxGuesses || 8;
+
+  if(!answer){
+    document.getElementById('guess-row').style.display = 'none';
+    document.getElementById('attempts-left').textContent = '';
+    document.getElementById('guess-table').innerHTML = '';
+    document.getElementById('empty-guesses').style.display = 'block';
+    document.getElementById('empty-guesses').textContent = 'No items yet -- load a CSV above, or add some on the Data tab.';
+    document.getElementById('end-banner-wrap').innerHTML = '';
+    return;
+  }
+
+  const over = gameState.won || gameState.lost;
+  document.getElementById('guess-row').style.display = over ? 'none' : 'flex';
+  document.getElementById('attempts-left').textContent = over
+    ? ''
+    : `${maxGuesses - gameState.guesses.length} guess${maxGuesses - gameState.guesses.length !== 1 ? 'es' : ''} left`;
+
+  const bannerWrap = document.getElementById('end-banner-wrap');
+  if(over){
+    bannerWrap.innerHTML = `
+      <div class="end-banner">
+        <div>${gameState.won ? '\ud83c\udf89 Got it!' : '\ud83d\udc80 Out of guesses'}</div>
+        <div class="answer">${answer.name}</div>
+        <div class="tries">${gameState.won ? `Solved in ${gameState.guesses.length} guess${gameState.guesses.length!==1?'es':''}` : `${gameState.guesses.length} guesses used`} \u00b7 come back tomorrow for a new one</div>
+      </div>
+    `;
+  } else {
+    bannerWrap.innerHTML = '';
+  }
+
+  const table = document.getElementById('guess-table');
+  const emptyMsg = document.getElementById('empty-guesses');
+  if(gameState.guesses.length === 0){
+    table.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = 'No guesses yet -- give it a shot.';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  const attrNames = config.attributes.map(a => a.name);
+  let html = '<tr><th>Guess</th>' + attrNames.map(n => `<th>${n}</th>`).join('') + '</tr>';
+  gameState.guesses.forEach(g=>{
+    html += `<tr><td class="name-cell">${g.name}</td>`;
+    config.attributes.forEach(attr=>{
+      const guessedItem = config.items.find(it => it.name === g.name);
+      const guessVal = guessedItem ? guessedItem.values[attr.name] : undefined;
+      const answerVal = answer.values[attr.name];
+      const result = compareAttribute(attr.type, guessVal, answerVal);
+      const displayVal = guessVal !== undefined && guessVal !== '' ? guessVal : '\u2014';
+      html += `<td class="cell-${result.color}">${displayVal}${result.arrow ? `<span class="arrow">${result.arrow}</span>` : ''}</td>`;
+    });
+    html += '</tr>';
+  });
+  table.innerHTML = html;
+}
+
+document.getElementById('guess-btn').addEventListener('click', ()=>{
+  const input = document.getElementById('guess-input');
+  const name = input.value.trim();
+  if(!name) return;
+  const item = config.items.find(it => it.name.toLowerCase() === name.toLowerCase());
+  if(!item){
+    alert('Not in the list -- pick one from the suggestions.');
+    return;
+  }
+  if(gameState.guesses.some(g => g.name === item.name)){
+    alert('Already guessed that one.');
+    return;
+  }
+
+  gameState.guesses.push({ name: item.name });
+  const answer = todaysAnswer();
+  if(item.name === answer.name){
+    gameState.won = true;
+  } else if(gameState.guesses.length >= (config.maxGuesses || 8)){
+    gameState.lost = true;
+  }
+  saveGameState(gameState);
+  input.value = '';
+  renderPlay();
+});
+document.getElementById('guess-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('guess-btn').click();
+});
+
+// ============================================================
+// Data tab rendering
+// ============================================================
+function renderDataTab(){
+  renderSchemaList();
+  renderItemsList();
+}
+
+function renderSchemaList(){
+  const wrap = document.getElementById('schema-list');
+  wrap.innerHTML = '';
+  config.attributes.forEach((attr, i)=>{
+    const row = document.createElement('div');
+    row.className = 'schema-row';
+    row.innerHTML = `
+      <input type="text" value="${attr.name.replace(/"/g,'&quot;')}" data-idx="${i}" class="attr-name-input">
+      <select data-idx="${i}" class="attr-type-input">
+        <option value="text" ${attr.type==='text'?'selected':''}>Text</option>
+        <option value="number" ${attr.type==='number'?'selected':''}>Number</option>
+        <option value="list" ${attr.type==='list'?'selected':''}>List</option>
+      </select>
+      <button type="button" class="btn-small btn-danger remove-attr-btn" data-idx="${i}">\u2715</button>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('.attr-name-input').forEach(input=>{
+    input.addEventListener('change', (e)=>{
+      config.attributes[e.target.dataset.idx].name = e.target.value;
+      saveConfig();
+    });
+  });
+  wrap.querySelectorAll('.attr-type-input').forEach(sel=>{
+    sel.addEventListener('change', (e)=>{
+      config.attributes[e.target.dataset.idx].type = e.target.value;
+      saveConfig();
+    });
+  });
+  wrap.querySelectorAll('.remove-attr-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.dataset.idx);
+      const removedName = config.attributes[idx].name;
+      config.attributes.splice(idx, 1);
+      config.items.forEach(it => delete it.values[removedName]);
+      saveConfig();
+      renderDataTab();
+    });
+  });
+}
+
+document.getElementById('add-attribute-btn').addEventListener('click', ()=>{
+  config.attributes.push({ name: 'New Attribute', type: 'text' });
+  saveConfig();
+  renderDataTab();
+});
+
+function renderItemsList(){
+  const wrap = document.getElementById('items-list');
+  wrap.innerHTML = '';
+  if(config.items.length === 0){
+    wrap.innerHTML = '<p class="empty">No items yet -- add one below, or load a CSV on the Play tab.</p>';
+    return;
+  }
+  config.items.forEach((item, i)=>{
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="item-card-head">
+        <input type="text" value="${item.name.replace(/"/g,'&quot;')}" class="item-name-input" data-idx="${i}" style="font-weight:700;">
+        <button type="button" class="btn-small btn-danger remove-item-btn" data-idx="${i}">\u2715</button>
+      </div>
+      <div class="item-field-grid">
+        ${config.attributes.map(attr => `
+          <div class="field">
+            <label>${attr.name}</label>
+            <input type="text" class="item-attr-input" data-idx="${i}" data-attr="${attr.name.replace(/"/g,'&quot;')}" value="${(item.values[attr.name] !== undefined ? item.values[attr.name] : '').toString().replace(/"/g,'&quot;')}">
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll('.item-name-input').forEach(input=>{
+    input.addEventListener('change', (e)=>{
+      config.items[e.target.dataset.idx].name = e.target.value;
+      saveConfig();
+    });
+  });
+  wrap.querySelectorAll('.item-attr-input').forEach(input=>{
+    input.addEventListener('change', (e)=>{
+      const idx = e.target.dataset.idx;
+      const attrName = e.target.dataset.attr;
+      config.items[idx].values[attrName] = e.target.value;
+      saveConfig();
+    });
+  });
+  wrap.querySelectorAll('.remove-item-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      config.items.splice(parseInt(e.target.dataset.idx), 1);
+      saveConfig();
+      renderDataTab();
+    });
+  });
+}
+
+document.getElementById('add-item-btn').addEventListener('click', ()=>{
+  const values = {};
+  config.attributes.forEach(attr => values[attr.name] = '');
+  config.items.push({ name: 'New Item', values });
+  saveConfig();
+  renderDataTab();
+});
+
+// ============================================================
+// Import / Export (JSON)
+// ============================================================
+document.getElementById('export-config-btn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `anydle-dataset-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('load-sample-btn').addEventListener('click', ()=>{
+  if(!confirm('Replace your current dataset with the sample one?')) return;
+  config = JSON.parse(JSON.stringify(SAMPLE_CONFIG));
+  saveConfig();
+  renderDataTab();
+  renderPlay();
+});
+
+document.getElementById('import-config-btn').addEventListener('click', ()=>{
+  const fileInput = document.getElementById('import-config-file');
+  const file = fileInput.files[0];
+  if(!file){ alert('Choose a file first.'); return; }
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      if(!parsed.attributes || !parsed.items) throw new Error('bad shape');
+      if(!confirm(`Import ${parsed.items.length} item(s) and ${parsed.attributes.length} attribute(s)? This replaces your current dataset.`)) return;
+      config = parsed;
+      if(!config.maxGuesses) config.maxGuesses = 8;
+      saveConfig();
+      renderDataTab();
+      renderPlay();
+      alert('Dataset imported.');
+    }catch(err){
+      alert('Could not read that file -- expected a dataset exported from this app (needs "attributes" and "items").');
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ============================================================
+// Init
+// ============================================================
+populateItemNamesDatalist();
+renderDatasetSummary();
+renderPlay();
+</script>
+</body>
+</html>
