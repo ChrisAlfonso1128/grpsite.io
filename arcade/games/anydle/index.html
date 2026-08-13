@@ -95,6 +95,17 @@
 
   main{ max-width:900px; margin:0 auto; padding:0 20px 80px; display:grid; gap:18px; }
 
+  .game-layout{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  .hint-panel{ flex:0 0 220px; }
+  .play-panel{ flex:1; min-width:280px; }
+  .hint-values-item{
+    display:inline-block; background:var(--card-2); border:1px solid var(--border);
+    border-radius:6px; padding:5px 10px; margin:0 6px 6px 0; font-size:13px; color:var(--sub);
+  }
+  @media (max-width:640px){
+    .hint-panel{ flex:1 1 100%; }
+  }
+
   .panel{ background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px; }
   .panel h2{ font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:700; margin:0 0 4px; color:var(--text); }
   .panel .sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
@@ -205,24 +216,35 @@
     </div>
   </section>
 
-  <section class="panel">
-    <h2 id="play-title">Today's Puzzle</h2>
-    <p class="sub" id="play-sub">Guess the mystery item. Each guess reveals how close you are on every attribute. No limit — take as many tries as you need.</p>
+  <div class="game-layout">
 
-    <div id="end-banner-wrap"></div>
+    <section class="panel hint-panel" id="hint-panel-wrap">
+      <h2>Included</h2>
+      <select id="hint-column-select" style="margin-bottom:12px;"></select>
+      <div id="hint-values-list"></div>
+      <p class="empty" id="empty-hints" style="display:none; padding:8px 0;">No text attributes to hint from.</p>
+    </section>
 
-    <div class="guess-row" id="guess-row">
-      <input type="text" id="guess-input" placeholder="Type a name..." list="item-names" autocomplete="off">
-      <datalist id="item-names"></datalist>
-      <button type="button" id="guess-btn">Guess</button>
-    </div>
-    <div class="attempts-count" id="attempts-count"></div>
+    <section class="panel play-panel">
+      <h2 id="play-title">Today's Puzzle</h2>
+      <p class="sub" id="play-sub">Guess the mystery item. Each guess reveals how close you are on every attribute. No limit — take as many tries as you need.</p>
 
-    <div class="guess-table-wrap">
-      <table class="guess-table" id="guess-table"></table>
-    </div>
-    <p class="empty" id="empty-guesses" style="display:none;">No guesses yet — give it a shot.</p>
-  </section>
+      <div id="end-banner-wrap"></div>
+
+      <div class="guess-row" id="guess-row">
+        <input type="text" id="guess-input" placeholder="Type a name..." list="item-names" autocomplete="off">
+        <datalist id="item-names"></datalist>
+        <button type="button" id="guess-btn">Guess</button>
+      </div>
+      <div class="attempts-count" id="attempts-count"></div>
+
+      <div class="guess-table-wrap">
+        <table class="guess-table" id="guess-table"></table>
+      </div>
+      <p class="empty" id="empty-guesses" style="display:none;">No guesses yet — give it a shot.</p>
+    </section>
+
+  </div>
 
 </main>
 
@@ -282,6 +304,7 @@ function saveConfig(){
   localStorage.setItem('anydle_config', JSON.stringify(config));
   populateItemNamesDatalist();
   renderDatasetSummary();
+  renderHintPanel();
 }
 
 function populateItemNamesDatalist(){
@@ -293,6 +316,83 @@ function renderDatasetSummary(){
   const el = document.getElementById('dataset-summary');
   el.textContent = `${config.items.length} item${config.items.length!==1?'s':''} \u00b7 ${config.attributes.length} attribute${config.attributes.length!==1?'s':''}: ${config.attributes.map(a=>a.name).join(', ')}`;
 }
+
+// ============================================================
+// Hint panel — shows every unique value for one chosen attribute
+// (e.g. every Series in an anime dataset, every Game in a weapons
+// dataset), so players know the scope without it giving away
+// which specific item is today's answer.
+// ============================================================
+function hintableAttributes(){
+  // Numbers aren't really a "category" to browse, so only text/list attributes qualify.
+  return config.attributes.filter(a => a.type === 'text' || a.type === 'list');
+}
+
+function populateHintColumnSelect(){
+  const select = document.getElementById('hint-column-select');
+  const candidates = hintableAttributes();
+  if(candidates.length === 0){
+    select.innerHTML = '';
+    select.style.display = 'none';
+    return;
+  }
+  select.style.display = 'block';
+  // Only keep a previously-picked column if it still exists in this dataset —
+  // a fresh dataset (or one with different columns) starts with hints hidden.
+  const current = config.hintColumn && candidates.some(a => a.name === config.hintColumn)
+    ? config.hintColumn
+    : '';
+  config.hintColumn = current;
+  const placeholder = `<option value="" ${current===''?'selected':''}>Pick a category to reveal hints...</option>`;
+  const options = candidates.map(a => `<option value="${a.name.replace(/"/g,'&quot;')}" ${a.name===current?'selected':''}>${a.name}</option>`).join('');
+  select.innerHTML = placeholder + options;
+}
+
+function renderHintValues(){
+  const wrap = document.getElementById('hint-values-list');
+  const emptyMsg = document.getElementById('empty-hints');
+  const candidates = hintableAttributes();
+
+  if(candidates.length === 0){
+    wrap.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = 'No text attributes to hint from.';
+    return;
+  }
+  if(!config.hintColumn){
+    wrap.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = 'Pick a category above to reveal what\'s included.';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  const attr = config.attributes.find(a => a.name === config.hintColumn);
+  const values = new Set();
+  config.items.forEach(it=>{
+    const raw = it.values[config.hintColumn];
+    if(raw === undefined || raw === '') return;
+    if(attr && attr.type === 'list'){
+      String(raw).split(';').map(s=>s.trim()).filter(Boolean).forEach(v => values.add(v));
+    } else {
+      values.add(String(raw).trim());
+    }
+  });
+
+  const sorted = [...values].sort((a,b)=> a.localeCompare(b));
+  wrap.innerHTML = sorted.map(v => `<span class="hint-values-item">${v}</span>`).join('');
+}
+
+function renderHintPanel(){
+  populateHintColumnSelect();
+  renderHintValues();
+}
+
+document.getElementById('hint-column-select').addEventListener('change', (e)=>{
+  config.hintColumn = e.target.value;
+  saveConfig();
+  renderHintValues();
+});
 
 // ============================================================
 // CSV parsing -- first column is the item name, every other column
@@ -564,6 +664,7 @@ document.getElementById('import-config-btn').addEventListener('click', ()=>{
 // ============================================================
 populateItemNamesDatalist();
 renderDatasetSummary();
+renderHintPanel();
 renderPlay();
 </script>
 </body>
