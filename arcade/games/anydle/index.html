@@ -343,7 +343,7 @@ function populateHintColumnSelect(){
     ? config.hintColumn
     : '';
   config.hintColumn = current;
-  const placeholder = `<option value="" ${current===''?'selected':''}>Pick a category to reveal hints...</option>`;
+  const placeholder = `<option value="" ${current===''?'selected':''}>Pick a category</option>`;
   const options = candidates.map(a => `<option value="${a.name.replace(/"/g,'&quot;')}" ${a.name===current?'selected':''}>${a.name}</option>`).join('');
   select.innerHTML = placeholder + options;
 }
