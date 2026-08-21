@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shard Runner</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    height:100%; width:100%; overflow:hidden;
+    background: radial-gradient(circle at 50% 30%, #2a0a1f 0%, #0a0510 60%, #000 100%);
+    font-family: 'Courier New', monospace;
+    color:#ffd6ec;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #wrap {
+    position:relative;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 40px 6px rgba(255, 60, 160, 0.35), 0 0 120px 20px rgba(120,0,80,0.25);
+    border: 2px solid #ff3ca0;
+  }
+  canvas { display:block; background:#0a0512; }
+  #overlay {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: linear-gradient(180deg, rgba(10,5,16,0.96), rgba(30,5,25,0.96));
+    text-align:center; padding:24px; gap:14px;
+  }
+  #overlay.hidden { display:none; }
+  #overlay h1 {
+    font-size: 28px; color:#ff5cb3; text-shadow: 0 0 10px #ff3ca0, 0 0 20px #ff3ca0;
+    letter-spacing:2px;
+  }
+  #overlay p { font-size:13px; line-height:1.6; max-width:440px; color:#ffd6ec; }
+  #overlay .hint { font-size:11px; color:#9a6b8a; margin-top:6px; }
+  #overlay button {
+    margin-top:10px;
+    background: linear-gradient(180deg,#ff3ca0,#a10f5c);
+    border: none; color:#fff; font-family:inherit; font-size:14px;
+    padding:10px 22px; cursor:pointer; letter-spacing:1px;
+    box-shadow: 0 0 12px rgba(255,60,160,0.6);
+  }
+  #overlay button:hover { filter:brightness(1.15); }
+  #hud {
+    position:absolute; top:6px; left:8px; font-size:11px; color:#ff9ecf;
+    text-shadow: 0 0 6px #000;
+    display:flex; gap:16px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="480" height="270"></canvas>
+  <div id="hud"></div>
+  <div id="overlay">
+    <h1>SHARD RUNNER</h1>
+    <p>The archive is collapsing. You are the last index-spirit, sent to recover the three Memory Shards before the black rot erases what remains. Move with <b>A/D</b> or arrows, jump with <b>Space/W</b>. Reach the pink gate to advance.</p>
+    <p class="hint">Spikes reset you to the last checkpoint. There is no fall damage from falling off the bottom &mdash; only from the rot below.</p>
+    <button id="startBtn">BEGIN</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const overlay = document.getElementById('overlay');
+  const hud = document.getElementById('hud');
+  const startBtn = document.getElementById('startBtn');
+
+  const W = canvas.width, H = canvas.height;
+  const GRAV = 0.4;
+  const MOVE_SPEED = 0.9;
+  const FRICTION = 0.78;
+  const JUMP_VEL = -8.0;
+
+  // ---------- Level data ----------
+  // Tiles: p = platform, s = spike, g = goal, c = collectible shard, . = empty
+  // Each level is a grid of 16x16 tiles, row-major, top to bottom.
+  const TS = 16; // tile size
+
+  function level(rows, spawn, story) {
+    return { rows, spawn, story };
+  }
+
+  const LEVELS = [
+    level([
+      "................................",
+      "................................",
+      "................................",
+      "..........c.....................",
+      "........pppp....................",
+      "................................",
+      "..................c.............",
+      "................pppp............",
+      "................................",
+      "....c...........................",
+      "..pppp.......ss..........g......",
+      "pppppppppppppppppppppppppppppppp",
+    ], {x: 24, y: 150}, "ENTRY WING — First Shard\nThe walls flicker. Something remembers your name."),
+
+    level([
+      "................................",
+      "................................",
+      "...c............................",
+      "..ppp...................c.......",
+      "..................ppp...........",
+      "................................",
+      ".......pppp........pppp.........",
+      "................................",
+      "....................ss..........",
+      "..ppp............ppppppp........",
+      "................................",
+      "pppppp....pppp.......g..........",
+      "..........................pppppp",
+    ], {x: 24, y: 150}, "MID ARCHIVE — Second Shard\nThe rot spreads faster here. Watch your footing near the spikes."),
+
+    level([
+      "................................",
+      "....c...........................",
+      "..ppp............................",
+      "................................",
+      "........s...............c......",
+      "....pppp.....pppp......pp......",
+      "................................",
+      "...............s................",
+      "......pppp...........pppp......",
+      "................................",
+      "..s......................s.....",
+      "ppp.ppp....pppp....pppp.ppp.g..",
+    ], {x: 24, y: 40}, "CORE VAULT — Final Shard\nThis is the last clean memory. Bring it home."),
+  ];
+
+  let levelIndex = 0;
+  let shardsThisLevel = 0;
+  let totalShards = 0;
+  let solids = [];
+  let spikes = [];
+  let collectibles = [];
+  let goal = null;
+  let checkpoint = {x:0, y:0};
+
+  const player = { x:0, y:0, vx:0, vy:0, w:10, h:14, onGround:false, facing:1, alive:true };
+
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => keys[e.code] = false);
+
+  function loadLevel(idx) {
+    const lvl = LEVELS[idx];
+    solids = []; spikes = []; collectibles = []; goal = null;
+    shardsThisLevel = 0;
+    lvl.rows.forEach((row, ry) => {
+      for (let rx = 0; rx < row.length; rx++) {
+        const ch = row[rx];
+        const x = rx * TS, y = ry * TS;
+        if (ch === 'p') solids.push({x,y,w:TS,h:TS});
+        else if (ch === 's') spikes.push({x,y:y+4,w:TS,h:TS-4});
+        else if (ch === 'g') goal = {x,y:y-TS,w:TS,h:TS*2};
+        else if (ch === 'c') collectibles.push({x:x+2,y:y-4,w:12,h:12,taken:false});
+      }
+    });
+    checkpoint = { ...lvl.spawn };
+    respawn();
+    showStory(lvl.story, false);
+  }
+
+  function respawn() {
+    player.x = checkpoint.x;
+    player.y = checkpoint.y;
+    player.vx = 0; player.vy = 0;
+    player.alive = true;
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function update() {
+    if (!player.alive) return;
+
+    // horizontal input
+    if (keys['ArrowLeft'] || keys['KeyA']) { player.vx -= MOVE_SPEED; player.facing = -1; }
+    if (keys['ArrowRight'] || keys['KeyD']) { player.vx += MOVE_SPEED; player.facing = 1; }
+    player.vx *= FRICTION;
+    if (Math.abs(player.vx) < 0.05) player.vx = 0;
+    player.vx = Math.max(-2.0, Math.min(2.0, player.vx));
+
+    if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && player.onGround) {
+      player.vy = JUMP_VEL;
+      player.onGround = false;
+    }
+
+    player.vy += GRAV;
+    if (player.vy > 10) player.vy = 10;
+
+    // move X
+    player.x += player.vx;
+    const pb = {x: player.x, y: player.y, w: player.w, h: player.h};
+    for (const s of solids) {
+      if (rectsOverlap(pb, s)) {
+        if (player.vx > 0) { player.x = s.x - player.w; }
+        else if (player.vx < 0) { player.x = s.x + s.w; }
+        player.vx = 0;
+        pb.x = player.x;
+      }
+    }
+
+    // move Y
+    player.y += player.vy;
+    player.onGround = false;
+    const pb2 = {x: player.x, y: player.y, w: player.w, h: player.h};
+    for (const s of solids) {
+      if (rectsOverlap(pb2, s)) {
+        if (player.vy > 0) { player.y = s.y - player.h; player.onGround = true; }
+        else if (player.vy < 0) { player.y = s.y + s.h; }
+        player.vy = 0;
+        pb2.y = player.y;
+      }
+    }
+
+    // fall off bottom -> respawn (no penalty message, just reset)
+    if (player.y > H + 40) { respawn(); return; }
+
+    // spikes
+    const pb3 = {x: player.x, y: player.y, w: player.w, h: player.h};
+    for (const sp of spikes) {
+      if (rectsOverlap(pb3, sp)) { respawn(); return; }
+    }
+
+    // collectibles
+    for (const c of collectibles) {
+      if (!c.taken && rectsOverlap(pb3, c)) {
+        c.taken = true;
+        shardsThisLevel++;
+        totalShards++;
+      }
+    }
+
+    // goal
+    if (goal && rectsOverlap(pb3, goal)) {
+      nextLevel();
+    }
+  }
+
+  function nextLevel() {
+    levelIndex++;
+    if (levelIndex >= LEVELS.length) {
+      showWin();
+    } else {
+      loadLevel(levelIndex);
+    }
+  }
+
+  // ---------- Rendering ----------
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // background gradient bands (cheap parallax feel)
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#180a22');
+    g.addColorStop(1, '#050208');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // faint grid dots
+    ctx.fillStyle = 'rgba(255,60,160,0.06)';
+    for (let x = 0; x < W; x += 16) for (let y = 0; y < H; y += 16) ctx.fillRect(x, y, 1, 1);
+
+    // platforms
+    ctx.fillStyle = '#5c1745';
+    for (const s of solids) {
+      ctx.fillRect(s.x, s.y, s.w, s.h);
+      ctx.fillStyle = '#ff3ca0';
+      ctx.fillRect(s.x, s.y, s.w, 2);
+      ctx.fillStyle = '#5c1745';
+    }
+
+    // spikes
+    ctx.fillStyle = '#ff2d55';
+    for (const sp of spikes) {
+      for (let i = 0; i < sp.w; i += 4) {
+        ctx.beginPath();
+        ctx.moveTo(sp.x + i, sp.y + sp.h);
+        ctx.lineTo(sp.x + i + 2, sp.y);
+        ctx.lineTo(sp.x + i + 4, sp.y + sp.h);
+        ctx.fill();
+      }
+    }
+
+    // collectibles (shards)
+    for (const c of collectibles) {
+      if (c.taken) continue;
+      const t = performance.now() / 300;
+      const bob = Math.sin(t + c.x) * 2;
+      ctx.save();
+      ctx.translate(c.x + 6, c.y + 6 + bob);
+      ctx.rotate(Math.sin(t) * 0.3);
+      ctx.fillStyle = '#ffe1f4';
+      ctx.beginPath();
+      ctx.moveTo(0, -6); ctx.lineTo(4, 0); ctx.lineTo(0, 6); ctx.lineTo(-4, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ff3ca0';
+      ctx.beginPath();
+      ctx.moveTo(0, -3); ctx.lineTo(2, 0); ctx.lineTo(0, 3); ctx.lineTo(-2, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // goal gate
+    if (goal) {
+      ctx.fillStyle = '#ff5cb3';
+      ctx.fillRect(goal.x + 4, goal.y, 8, goal.h);
+      ctx.fillStyle = 'rgba(255,92,179,0.35)';
+      ctx.fillRect(goal.x, goal.y, TS, goal.h);
+    }
+
+    // player
+    ctx.save();
+    ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+    ctx.scale(player.facing, 1);
+    ctx.fillStyle = '#ffe1f4';
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+    ctx.fillStyle = '#ff3ca0';
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, 4);
+    ctx.fillStyle = '#0a0512';
+    ctx.fillRect(2, -player.h/2 + 5, 2, 2);
+    ctx.restore();
+
+    hud.textContent = `LEVEL ${levelIndex + 1}/${LEVELS.length}   SHARDS ${shardsThisLevel}/${(LEVELS[levelIndex].rows.join('').match(/c/g)||[]).length}   TOTAL ${totalShards}`;
+  }
+
+  let loopRunning = false;
+  function loop() {
+    if (!loopRunning) return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function showStory(text, isEnd, onContinue) {
+    loopRunning = false;
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = `
+      <h1>${isEnd ? 'ARCHIVE RESTORED' : 'LOG FRAGMENT'}</h1>
+      <p style="white-space:pre-line">${text}</p>
+      <button id="continueBtn">${isEnd ? 'PLAY AGAIN' : 'CONTINUE'}</button>
+    `;
+    document.getElementById('continueBtn').addEventListener('click', () => {
+      if (onContinue) {
+        onContinue();
+      } else {
+        overlay.classList.add('hidden');
+        loopRunning = true;
+        requestAnimationFrame(loop);
+      }
+    }, { once: true });
+  }
+
+  function showWin() {
+    const text = `All three Memory Shards are restored. The rot recedes, and the archive breathes again.\n\nTotal shards collected: ${totalShards}/9`;
+    showStory(text, true, () => {
+      levelIndex = 0; totalShards = 0;
+      loadLevel(0);
+    });
+  }
+
+  startBtn.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    levelIndex = 0; totalShards = 0;
+    loadLevel(0);
+    loopRunning = true;
+    requestAnimationFrame(loop);
+  });
+})();
+</script>
+</body>
+</html>
