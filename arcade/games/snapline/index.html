@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Snapline</title>
+<style>
+  :root{
+    --bg-0:#0a0510;
+    --bg-1:#160a24;
+    --pink:#ff4fa3;
+    --pink-dim:#ff4fa355;
+    --pink-glow:#ff8fc9;
+    --ice:#8fe9ff;
+    --ice-dim:#8fe9ff55;
+    --danger:#ff3b3b;
+    --text:#f3e9ff;
+    --muted:#b39fce;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #2a1240 0%, var(--bg-0) 60%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    color:var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow:hidden;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  #wrap{
+    display:flex; flex-direction:column; align-items:center;
+    height:100%; padding:14px; gap:10px;
+  }
+  #hud{
+    width:100%; max-width:900px;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 18px;
+    border-radius:14px;
+    background:linear-gradient(135deg, #1c0e2e, #150a20);
+    border:1px solid var(--pink-dim);
+    box-shadow: 0 0 24px -6px var(--pink-dim);
+  }
+  .stat{display:flex; flex-direction:column; align-items:center; min-width:64px;}
+  .stat .n{font-size:22px; font-weight:700; color:var(--pink-glow); text-shadow:0 0 10px var(--pink-dim); line-height:1.1;}
+  .stat .l{font-size:10px; letter-spacing:.08em; color:var(--muted); margin-top:2px;}
+  #title{font-size:18px; font-weight:700; letter-spacing:.03em;
+    background:linear-gradient(90deg, var(--pink-glow), var(--ice));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  #stage{
+    position:relative;
+    width:100%; max-width:900px; aspect-ratio: 16/10;
+    border-radius:16px;
+    overflow:hidden;
+    border:2px solid var(--pink-dim);
+    box-shadow: 0 0 40px -10px var(--pink-dim), inset 0 0 60px -20px #000;
+    background: radial-gradient(600px 400px at 50% 40%, #1a0d2b, #0c0614 75%);
+  }
+  canvas{display:block; width:100%; height:100%;}
+  #msg{
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px;
+    background:rgba(8,4,14,0.72);
+    opacity:0; pointer-events:none;
+    transition:opacity .18s ease;
+    text-align:center; padding:20px;
+  }
+  #msg.show{opacity:1; pointer-events:all;}
+  #msg h2{margin:0; font-size:30px; letter-spacing:.02em;}
+  #msg p{margin:0; color:var(--muted); font-size:14px; max-width:400px;}
+  #msg button{
+    margin-top:8px;
+    background:linear-gradient(135deg, var(--pink), #a12e70);
+    color:#fff; border:none; padding:10px 26px; border-radius:999px;
+    font-size:14px; font-weight:700; letter-spacing:.03em;
+    cursor:pointer; box-shadow:0 0 22px -4px var(--pink);
+  }
+  #msg button:active{transform:scale(0.96);}
+  #hint{
+    color:var(--muted); font-size:12px; text-align:center; max-width:560px;
+  }
+  .flash{ animation: flash .35s ease; }
+  @keyframes flash{
+    0%{ box-shadow: 0 0 0 6px var(--danger) inset, 0 0 60px 10px var(--danger); }
+    100%{ box-shadow: 0 0 40px -10px var(--pink-dim), inset 0 0 60px -20px #000; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div id="title">SNAPLINE</div>
+    <div style="display:flex; gap:22px;">
+      <div class="stat"><div class="n" id="levelN">1</div><div class="l">LEVEL</div></div>
+      <div class="stat"><div class="n" id="attemptsN">0</div><div class="l">ATTEMPTS</div></div>
+      <div class="stat"><div class="n" id="streakN">0</div><div class="l">STREAK</div></div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="msg">
+      <h2 id="msgTitle">Ready</h2>
+      <p id="msgBody">The ball hangs in place until you click. Click anywhere on screen to fire a line there and start swinging — let go mid-swing to release your momentum toward the goal.</p>
+      <button id="msgBtn">Start</button>
+    </div>
+  </div>
+
+  <div id="hint">Click anywhere on screen to fire a line and swing from that point (capped at the dashed range ring), release to let go and fly on momentum. Touching a red block or the wall restarts you; the layout regenerates every time.</div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const msg = document.getElementById('msg');
+  const msgTitle = document.getElementById('msgTitle');
+  const msgBody = document.getElementById('msgBody');
+  const msgBtn = document.getElementById('msgBtn');
+  const levelEl = document.getElementById('levelN');
+  const attemptsEl = document.getElementById('attemptsN');
+  const streakEl = document.getElementById('streakN');
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = stage.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---- state ----
+  let level = 1, attempts = 0, streak = 0;
+  let ball, goal, obstacles, walls;
+  let holding = false, swinging = false, anchor = null, ropeLen = 0;
+  let particles = [];
+  let trail = [];
+  let gameOver = true;
+  let shakeT = 0;
+  let missPuff = null;
+  let started = false;
+  let launched = false; // becomes true the moment the player's first swing fires
+
+  const BALL_R = 10;
+  const GOAL_R = 22;
+  const MARGIN = 26;
+  const G = 0.46;
+  const AIR_DAMP = 0.999;
+  const ROPE_DAMP = 0.996;
+  const MAX_RANGE = 250;
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function dist(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+  function rectsOverlap(a,b,pad){
+    return !(a.x+a.w+pad < b.x || b.x+b.w+pad < a.x || a.y+a.h+pad < b.y || b.y+b.h+pad < a.y);
+  }
+  function circleRectOverlap(cx,cy,cr,r){
+    const nx = Math.max(r.x, Math.min(cx, r.x+r.w));
+    const ny = Math.max(r.y, Math.min(cy, r.y+r.h));
+    const dx = cx-nx, dy = cy-ny;
+    return (dx*dx+dy*dy) < cr*cr;
+  }
+  function generateLevel(){
+    swinging = false; holding = false; anchor = null; trail = [];
+    launched = false;
+    ball = { x: MARGIN+34, y: MARGIN+34, vx: 0, vy: 0 };
+
+    goal = {
+      x: rand(W*0.55, W-MARGIN-GOAL_R),
+      y: rand(MARGIN+GOAL_R+10, H-MARGIN-GOAL_R-10)
+    };
+
+    walls = { x:MARGIN, y:MARGIN, w:W-MARGIN*2, h:H-MARGIN*2 };
+
+    const obCount = Math.min(3 + Math.floor((level-1)*1.2), 13);
+    obstacles = [];
+    let tries = 0;
+    while(obstacles.length < obCount && tries < obCount*40){
+      tries++;
+      const w = rand(30, 95 - Math.min(level,8)*2);
+      const h = rand(30, 95 - Math.min(level,8)*2);
+      const rect = {
+        x: rand(walls.x+8, walls.x+walls.w-w-8),
+        y: rand(walls.y+8, walls.y+walls.h-h-8)
+      };
+      rect.w = w; rect.h = h;
+      const startClear = { x: ball.x-60, y: ball.y-60, w:120, h:120 };
+      const goalClear = { x: goal.x-56, y: goal.y-56, w:112, h:112 };
+      if (rectsOverlap(rect, startClear, 0)) continue;
+      if (rectsOverlap(rect, goalClear, 0)) continue;
+      let bad = false;
+      for(const o of obstacles){ if(rectsOverlap(rect,o,6)){ bad=true; break; } }
+      if(bad) continue;
+      obstacles.push(rect);
+    }
+  }
+
+  function updateHud(){
+    levelEl.textContent = level;
+    attemptsEl.textContent = attempts;
+    streakEl.textContent = streak;
+  }
+
+  function showMsg(title, body, btnLabel){
+    msgTitle.textContent = title;
+    msgBody.textContent = body;
+    msgBtn.textContent = btnLabel;
+    msg.classList.add('show');
+    gameOver = true;
+  }
+  function hideMsg(){ msg.classList.remove('show'); gameOver = false; started = true; }
+
+  function fail(){
+    if(gameOver) return;
+    swinging = false; holding = false; anchor = null;
+    shakeT = 14;
+    stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
+    spawnBurst(ball.x, ball.y, '#ff3b3b', 18);
+    attempts++; streak = 0;
+    updateHud();
+    gameOver = true;
+    setTimeout(()=>{
+      generateLevel();
+      gameOver = false;
+    }, 260);
+  }
+
+  function win(){
+    if(gameOver) return;
+    swinging = false; holding = false; anchor = null;
+    spawnBurst(goal.x, goal.y, '#8fe9ff', 26);
+    streak++; level++;
+    updateHud();
+    gameOver = true;
+    setTimeout(()=>{
+      showMsg('Level ' + (level-1) + ' clear!', 'Streak: ' + streak + '. Next layout is ready.', 'Next Level');
+    }, 320);
+  }
+
+  function spawnBurst(x,y,color,n){
+    for(let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = rand(1.5,5.5);
+      particles.push({x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:1, color});
+    }
+  }
+
+  function checkHazards(){
+    if(ball.x - BALL_R < walls.x || ball.x + BALL_R > walls.x+walls.w ||
+       ball.y - BALL_R < walls.y || ball.y + BALL_R > walls.y+walls.h){
+      fail(); return true;
+    }
+    for(const o of obstacles){
+      if(circleRectOverlap(ball.x, ball.y, BALL_R, o)){ fail(); return true; }
+    }
+    if(dist(ball.x,ball.y,goal.x,goal.y) < GOAL_R - 4){ win(); return true; }
+    return false;
+  }
+
+  function step(){
+    if(shakeT>0) shakeT--;
+    if(!started || !launched) return;
+
+    trail.push({x:ball.x, y:ball.y});
+    if(trail.length>18) trail.shift();
+
+    if(swinging && anchor){
+      ball.vy += G;
+      let px = ball.x + ball.vx;
+      let py = ball.y + ball.vy;
+      let dx = px - anchor.x, dy = py - anchor.y;
+      let d = Math.hypot(dx,dy) || 0.0001;
+      const nx = anchor.x + dx/d*ropeLen;
+      const ny = anchor.y + dy/d*ropeLen;
+      ball.vx = (nx - ball.x) * ROPE_DAMP;
+      ball.vy = (ny - ball.y) * ROPE_DAMP;
+      ball.x = nx; ball.y = ny;
+    } else {
+      ball.vy += G;
+      ball.vx *= AIR_DAMP;
+      ball.vy *= AIR_DAMP;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+    }
+
+    checkHazards();
+
+    particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vx*=0.94; p.vy*=0.94; p.life-=0.035; });
+    particles = particles.filter(p=>p.life>0);
+    if(missPuff){ missPuff.life -= 0.06; if(missPuff.life<=0) missPuff=null; }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    let ox=0, oy=0;
+    if(shakeT>0){ ox = rand(-4,4); oy = rand(-4,4); }
+    ctx.save();
+    ctx.translate(ox,oy);
+
+    ctx.strokeStyle = 'rgba(255,79,163,0.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(walls.x, walls.y, walls.w, walls.h);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 1;
+    for(let gx=walls.x; gx<walls.x+walls.w; gx+=30){
+      ctx.beginPath(); ctx.moveTo(gx, walls.y); ctx.lineTo(gx, walls.y+walls.h); ctx.stroke();
+    }
+    for(let gy=walls.y; gy<walls.y+walls.h; gy+=30){
+      ctx.beginPath(); ctx.moveTo(walls.x, gy); ctx.lineTo(walls.x+walls.w, gy); ctx.stroke();
+    }
+
+    obstacles.forEach(o=>{
+      ctx.fillStyle = 'rgba(255,59,59,0.16)';
+      ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+      ctx.lineWidth = 2;
+      roundRect(o.x,o.y,o.w,o.h,6);
+      ctx.fill(); ctx.stroke();
+    });
+
+    // range ring around ball when it can fire a new line
+    if(!swinging && started){
+      ctx.strokeStyle = 'rgba(255,143,201,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4,6]);
+      ctx.beginPath(); ctx.arc(ball.x,ball.y,MAX_RANGE,0,7); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // goal
+    const pulse = 1 + Math.sin(Date.now()/260)*0.06;
+    const grad = ctx.createRadialGradient(goal.x,goal.y,2,goal.x,goal.y,GOAL_R*1.6);
+    grad.addColorStop(0,'rgba(255,79,163,0.55)');
+    grad.addColorStop(1,'rgba(255,79,163,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(goal.x,goal.y,GOAL_R*1.6*pulse,0,7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,79,163,0.22)';
+    ctx.strokeStyle = '#ff4fa3';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(goal.x,goal.y,GOAL_R*pulse,0,7); ctx.fill(); ctx.stroke();
+
+    // trail
+    trail.forEach((t,i)=>{
+      ctx.globalAlpha = (i/trail.length)*0.3;
+      ctx.fillStyle = '#8fe9ff';
+      ctx.beginPath(); ctx.arc(t.x,t.y, BALL_R*0.55,0,7); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // rope
+    if(swinging && anchor){
+      ctx.strokeStyle = 'rgba(230,240,255,0.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ball.x,ball.y); ctx.lineTo(anchor.x,anchor.y); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(anchor.x,anchor.y,3,0,7); ctx.fill();
+    }
+
+    // miss puff
+    if(missPuff){
+      ctx.globalAlpha = Math.max(missPuff.life,0);
+      ctx.strokeStyle = '#ff3b3b';
+      ctx.lineWidth = 2;
+      const r = (1-missPuff.life)*22+6;
+      ctx.beginPath(); ctx.arc(missPuff.x,missPuff.y,r,0,7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // ball (idle hang has a small sway; purely visual, doesn't move the real ball)
+    let bx = ball.x, by = ball.y;
+    if(!launched && started){
+      bx += Math.sin(Date.now()/900) * 5;
+      by += Math.sin(Date.now()/650) * 2;
+      ctx.strokeStyle = 'rgba(230,240,255,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(bx, walls.y); ctx.lineTo(bx, by); ctx.stroke();
+    }
+    const bgrad = ctx.createRadialGradient(bx-4,by-4,1,bx,by,BALL_R);
+    bgrad.addColorStop(0,'#ffe3f2');
+    bgrad.addColorStop(1,'#ff4fa3');
+    ctx.fillStyle = bgrad;
+    ctx.beginPath(); ctx.arc(bx,by,BALL_R,0,7); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    particles.forEach(p=>{
+      ctx.globalAlpha = Math.max(p.life,0);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,3,0,7); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function loop(){
+    if(!gameOver){ step(); }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- input ----
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
+    return { x: (p.clientX-rect.left), y: (p.clientY-rect.top) };
+  }
+
+  function onDown(e){
+    if(gameOver || swinging) { e.preventDefault(); return; }
+    const p = pos(e);
+    const d = dist(ball.x, ball.y, p.x, p.y);
+    if(d < 14){
+      missPuff = { x:p.x, y:p.y, life:1 };
+      e.preventDefault();
+      return;
+    }
+    // rope fires toward wherever was clicked, capped at max range in that direction
+    const reach = Math.min(d, MAX_RANGE);
+    const dx = (p.x - ball.x) / d, dy = (p.y - ball.y) / d;
+    anchor = { x: ball.x + dx*reach, y: ball.y + dy*reach };
+    ropeLen = reach;
+    swinging = true; holding = true; launched = true;
+    e.preventDefault();
+  }
+  function onUp(e){
+    if(!holding) return;
+    holding = false; swinging = false; anchor = null;
+    e.preventDefault();
+  }
+
+  canvas.addEventListener('mousedown', onDown);
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, {passive:false});
+  canvas.addEventListener('touchend', onUp, {passive:false});
+  canvas.addEventListener('touchcancel', onUp, {passive:false});
+
+  msgBtn.addEventListener('click', ()=>{
+    hideMsg();
+    generateLevel();
+    updateHud();
+  });
+
+  // ---- init ----
+  resize();
+  generateLevel();
+  updateHud();
+  showMsg('Ready', 'The ball hangs in place until you click. Click anywhere on screen to fire a line there and start swinging — let go mid-swing to release your momentum toward the goal.', 'Start');
+  loop();
+})();
+</script>
+</body>
+</html>
