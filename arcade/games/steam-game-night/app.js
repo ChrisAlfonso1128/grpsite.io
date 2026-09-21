@@ -16,13 +16,13 @@ let matchingGames = [];
 // Change these IDs only if your HTML uses different ones
 // ======================================================
 
-const profilesContainer = document.getElementById("profilesContainer");
-const addPlayerButton = document.getElementById("addPlayerBtn");
-const checkGamesButton = document.getElementById("checkGamesBtn");
-const ownershipFilter = document.getElementById("ownershipFilter");
-const gamesContainer = document.getElementById("gamesContainer");
-const matchingCount = document.getElementById("matchingCount");
-const statusText = document.getElementById("statusText");
+const profilesContainer = document.getElementById("players");
+const addPlayerButton = document.getElementById("add");
+const checkGamesButton = document.getElementById("check");
+const ownershipFilter = document.getElementById("ownership");
+const gamesContainer = document.getElementById("games");
+const matchingCount = document.getElementById("count");
+const statusText = document.getElementById("status");
 
 
 // ======================================================
@@ -264,7 +264,7 @@ function compareLibraries() {
     const value =
       ownershipFilter.value;
 
-    if (value === "everyone") {
+    if (value === "all") {
 
       minimumOwners =
         players.length;
